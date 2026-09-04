@@ -99,7 +99,7 @@ The user interface follows the **Neo-Brutalist** visual style specified in `DESI
 ## 6. Project Directory Layout
 
 ```
-MacroDeck/
+Micro-Action/
 ├── main.py                   # App entry point & event loop
 ├── gui.py                    # Neo-Brutalist PyQt6 Editor UI
 ├── hook.py                   # Low-level Windows WH_KEYBOARD_LL hook

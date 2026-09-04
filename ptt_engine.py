@@ -132,7 +132,7 @@ class PTTEngine:
             target=self._tick_loop, daemon=True, name="PTTTick"
         )
         self._tick_thread.start()
-        print(f"[PTT] Recording started (model={req_model_size}).")
+        print(f"[PTT] Recording started (model={WHISPER_MODEL_NAME}).")
 
     def stop(self):
         """Called when PTT key is released — transcribes full buffer and reconciles."""
