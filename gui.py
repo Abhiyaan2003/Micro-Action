@@ -1026,7 +1026,6 @@ class NumpadEditor(QWidget):
                 b_map = {"default": "Default Browser", "chrome": "Google Chrome", "firefox": "Mozilla Firefox", "edge": "Microsoft Edge", "brave": "Brave Browser"}
                 self.browser_combo.setCurrentText(b_map.get(b_id, "Default Browser"))
             self.val_input.setText(val)
-            self.val_input.setText(val)
             if act_type in ("screenshot", "screenrec"):
                 self.capture_combo.setCurrentText(REVERSE_MODE_MAP.get(val.split("|")[0], "Full Screen"))
             self.desc_input.setText(action.get("desc", ""))

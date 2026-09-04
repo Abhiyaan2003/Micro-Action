@@ -83,14 +83,15 @@ class ActionEngine:
                 url = "https://" + url
 
             browser = browser.lower()
-            if browser == "chrome":
-                subprocess.Popen(["cmd.exe", "/c", f"start chrome.exe {url}"], shell=True)
-            elif browser == "firefox":
-                subprocess.Popen(["cmd.exe", "/c", f"start firefox.exe {url}"], shell=True)
-            elif browser == "edge":
-                subprocess.Popen(["cmd.exe", "/c", f"start msedge.exe {url}"], shell=True)
-            elif browser == "brave":
-                subprocess.Popen(["cmd.exe", "/c", f"start brave.exe {url}"], shell=True)
+            browser_exes = {
+                "chrome": "chrome.exe",
+                "firefox": "firefox.exe",
+                "edge": "msedge.exe",
+                "brave": "brave.exe",
+            }
+            exe = browser_exes.get(browser)
+            if exe:
+                subprocess.Popen(f'start "" "{exe}" "{url}"', shell=True)
             else:
                 # Default browser fallback
                 import webbrowser

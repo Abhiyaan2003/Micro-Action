@@ -149,11 +149,11 @@ def run_tests(overlay):
 
     # -- Test 8: GUI action types registered --
     print("\n-- Test 8: GUI Integration --")
-    from gui import ACTION_THEMES, ACTION_ICONS, MODE_MAP
-    log("screenshot in ACTION_THEMES", "screenshot" in ACTION_THEMES)
-    log("screenrec in ACTION_THEMES", "screenrec" in ACTION_THEMES)
-    log("screenshot in ACTION_ICONS", "screenshot" in ACTION_ICONS)
-    log("screenrec in ACTION_ICONS", "screenrec" in ACTION_ICONS)
+    from gui import ACTION_COLORS, ACTION_DISPLAY_NAMES, MODE_MAP
+    log("screenshot in ACTION_COLORS", "screenshot" in ACTION_COLORS)
+    log("screenrec in ACTION_COLORS", "screenrec" in ACTION_COLORS)
+    log("screenshot in ACTION_DISPLAY_NAMES", "screenshot" in ACTION_DISPLAY_NAMES)
+    log("screenrec in ACTION_DISPLAY_NAMES", "screenrec" in ACTION_DISPLAY_NAMES)
     log("MODE_MAP has 3 modes", len(MODE_MAP) == 3)
 
     # -- Test 9: ActionEngine dispatch --
