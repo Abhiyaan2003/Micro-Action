@@ -1,0 +1,11 @@
+keyboard
+pywin32
+PyQt6
+pystray
+pycaw
+pyautogui
+Pillow
+comtypes
+faster-whisper
+pyaudio
+opencv-python

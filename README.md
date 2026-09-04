@@ -1,7 +1,7 @@
 # 🎛️ Micro Action — Physical Numpad Macro Engine
 
 <p align="center">
-  <img src="assets/app_icon.png" alt="Micro Action Logo" width="128" height="128" />
+  <img src="assets/icon.png" alt="Micro Action Logo" width="128" height="128" />
 </p>
 
 <p align="center">
@@ -10,16 +10,16 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12" />
-  <img src="https://img.shields.io/badge/PyQt6-0ea5e9?style=for-the-badge&logo=qt&logoColor=white" alt="PyQt6 UI" />
+  <img src="https://img.shields.io/badge/PyQt6-Neo--Brutalist-0ea5e9?style=for-the-badge&logo=qt&logoColor=white" alt="PyQt6 UI" />
   <img src="https://img.shields.io/badge/Whisper-Speech--to--Text-000000?style=for-the-badge&logo=openai&logoColor=white" alt="Whisper AI" />
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
 </p>
 
 > [!IMPORTANT]
 > ### ⚡ Instant Download (No Installation / No Python Required!)
-> Download the pre-compiled, standalone Windows application directly from [**GitHub Releases**](../../releases):
+> Download the pre-compiled, standalone Windows application directly from [**GitHub Releases**](https://github.com/Abhiyaan2003/Micro-Action/releases):
 > 
-> 📦 **[Download Latest Executable Release (v1.0.0)](../../releases)**
+> 📦 **[Download Latest Executable Release (v1.0.0)](https://github.com/Abhiyaan2003/Micro-Action/releases)**
 > 1. Download `MicroAction-v1.0.0-windows-x64.zip`.
 > 2. Extract the folder anywhere on your computer.
 > 3. Double click **`MicroAction.exe`** to start using immediately!
@@ -98,8 +98,6 @@ graph TD
 
 ## 💻 Developer Setup (Build from Source)
 
-If you want to modify the code or build the executable from source:
-
 ### Prerequisites
 
 - **Windows 10 / 11** (64-bit)
@@ -110,8 +108,8 @@ If you want to modify the code or build the executable from source:
 
 1. **Clone repository**:
    ```bash
-   git clone https://github.com/your-username/MacroDeck.git
-   cd MacroDeck
+   git clone https://github.com/Abhiyaan2003/Micro-Action.git
+   cd Micro-Action
    ```
 
 2. **Create virtual environment & install dependencies**:
@@ -137,7 +135,7 @@ If you want to modify the code or build the executable from source:
 ## 🛠️ Project Structure
 
 ```
-MacroDeck/
+Micro-Action/
 ├── main.py                  # Application entry point & Qt lifecycle
 ├── gui.py                   # PyQt6 Main Window & Numpad visual layout
 ├── hook.py                  # Windows WH_KEYBOARD_LL low-level input hook

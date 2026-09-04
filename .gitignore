@@ -1,0 +1,66 @@
+# ==========================================
+# Python & Bytecode
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyo
+
+# ==========================================
+# Virtual Environments
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# PyInstaller & Build Artifacts
+# ==========================================
+build/
+dist/
+*.manifest
+*.spec.bak
+
+# ==========================================
+# Testing & Logs
+# ==========================================
+*.log
+hook_debug.txt
+output.txt
+_test_captures/
+tests/_test_captures/
+.pytest_cache/
+.coverage
+htmlcov/
+*.wav
+
+# ==========================================
+# IDEs & Editor Configuration
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.user
+
+# ==========================================
+# Operating System Files
+# ==========================================
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+.DS_Store
+
+# ==========================================
+# Agent & Tool Metadata / Output
+# ==========================================
+graphify-out/
+.agents/
+.codex/
+.impeccable/
