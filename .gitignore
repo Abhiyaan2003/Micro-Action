@@ -23,6 +23,7 @@ venv.bak/
 # ==========================================
 build/
 dist/
+release/
 *.manifest
 *.spec.bak
 
@@ -65,3 +66,4 @@ graphify-out/
 .codex/
 .impeccable/
 readme.md
+MicroAction.spec

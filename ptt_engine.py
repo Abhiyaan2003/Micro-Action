@@ -30,6 +30,7 @@ class PTTEngine:
         self._unload_timer   = None
 
         self._recording      = False
+        self._shutdown       = False      # Set True during app exit to prevent re-start
         self._audio_buf      = []           # list of np.int16 chunks
         self._mic_thread     = None
         self._tick_thread    = None
@@ -92,8 +93,11 @@ class PTTEngine:
 
     # ── Public API ───────────────────────────────────────────────────────────
 
-    def start(self):
+    def start(self, config_val: str | None = None):
         """Called when PTT key is pressed down."""
+        if self._shutdown:
+            return
+
         # Cancel any active unload timer
         with self._model_lock:
             if self._unload_timer is not None:
@@ -146,10 +150,13 @@ class PTTEngine:
         self._stop_tick.set()
 
         # Wait for mic and tick threads to finish
-        if self._mic_thread:
-            self._mic_thread.join(timeout=1.5)
-        if self._tick_thread:
-            self._tick_thread.join(timeout=1.5)
+        try:
+            if self._mic_thread and self._mic_thread.is_alive():
+                self._mic_thread.join(timeout=1.5)
+            if self._tick_thread and self._tick_thread.is_alive():
+                self._tick_thread.join(timeout=1.5)
+        except Exception as e:
+            print(f"[PTT] Thread join error: {e}")
 
         if self.overlay:
             if self.model_loading:
@@ -162,33 +169,39 @@ class PTTEngine:
 
         committed_snap = self._committed_words[:]
 
-        threading.Thread(
-            target=self._transcribe_and_type,
-            args=(audio_snapshot, committed_snap),
-            daemon=True,
-            name="PTTTranscribe"
-        ).start()
+        if not self._shutdown:
+            threading.Thread(
+                target=self._transcribe_and_type,
+                args=(audio_snapshot, committed_snap),
+                daemon=True,
+                name="PTTTranscribe"
+            ).start()
+        else:
+            if self.overlay:
+                self.overlay.hide()
 
-    def _reset_inactivity_timer(self):
+    def shutdown(self):
+        """Cleanly shut down the PTT engine during app exit."""
+        self._shutdown = True
+        # Stop any active recording without transcribing
+        if self._recording:
+            self._recording = False
+            self._stop_mic.set()
+            self._stop_tick.set()
+        # Cancel the model unload timer
         with self._model_lock:
             if self._unload_timer is not None:
                 self._unload_timer.cancel()
                 self._unload_timer = None
-            
-            # Start a new timer for 60 seconds
-            self._unload_timer = threading.Timer(60.0, self._unload_model)
-            self._unload_timer.daemon = True
-            self._unload_timer.start()
+        if self.overlay:
+            self.overlay.hide()
+
+    def _reset_inactivity_timer(self):
+        # Keep model warm in RAM for instant PTT response across long idle sessions
+        pass
 
     def _unload_model(self):
-        with self._model_lock:
-            if self.model is not None:
-                print("[PTT] Whisper model inactive for 60s. Unloading model to save RAM...")
-                self.model = None
-                self.model_loaded = False
-                self._unload_timer = None
-                import gc
-                gc.collect()
+        pass
 
     # ── Mic recording loop ───────────────────────────────────────────────────
 
@@ -395,6 +408,38 @@ class PTTEngine:
                 time.sleep(0.3)
                 self.overlay.hide()
             self._reset_inactivity_timer()
+
+    def _reset_inactivity_timer(self):
+        """Reset the inactivity timer to unload the model after 10 minutes of non-use."""
+        with self._model_lock:
+            if self._unload_timer is not None:
+                self._unload_timer.cancel()
+                self._unload_timer = None
+            if self.model is not None and not self._recording:
+                self._unload_timer = threading.Timer(600.0, self._unload_model)
+                self._unload_timer.daemon = True
+                self._unload_timer.start()
+
+    def _unload_model(self):
+        """Unload the Whisper model to free memory during prolonged idle periods."""
+        with self._model_lock:
+            if not self._recording and self.model is not None:
+                print("[PTT] Unloading Whisper model due to inactivity to free RAM.")
+                self.model = None
+                self.model_loaded = False
+                import gc
+                gc.collect()
+
+    def shutdown(self):
+        """Cleanly shut down PTT engine on application exit."""
+        self._shutdown = True
+        self.stop()
+        with self._model_lock:
+            if self._unload_timer is not None:
+                self._unload_timer.cancel()
+                self._unload_timer = None
+            self.model = None
+            self.model_loaded = False
 
     @property
     def _running(self):

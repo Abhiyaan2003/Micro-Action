@@ -214,8 +214,8 @@ class ToastNotification(QWidget):
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.hide_toast)
 
-    def show_toast(self, key_label: str, action_desc: str, success: bool = True):
-        border_col = ACCENT_GREEN if success else ACCENT_RED
+    def show_toast(self, title: str, detail: str, success: bool = True, color: str | None = None):
+        border_col = color if color else (ACCENT_GREEN if success else ACCENT_RED)
         self.container.setStyleSheet(f"""
             QWidget {{
                 background-color: {BG_PANEL};
@@ -225,15 +225,15 @@ class ToastNotification(QWidget):
             }}
         """)
         
-        ic_name = "screenshot" if success else "delete"
+        ic_name = "hotkey" if success else "delete"
         ic_px = get_hugeicon_pixmap(ic_name, border_col, 18)
         if not ic_px.isNull():
             self.icon_label.setPixmap(ic_px)
 
-        self.title_lbl.setText("Macro Activated" if success else "Action Failed")
-        self.title_lbl.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+        self.title_lbl.setText(title)
+        self.title_lbl.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {border_col}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
         
-        self.detail_lbl.setText(f"{key_label} → {action_desc}")
+        self.detail_lbl.setText(detail)
         self.adjustSize()
 
         # Position bottom-right of primary screen
@@ -249,7 +249,7 @@ class ToastNotification(QWidget):
         self.setWindowOpacity(1.0)
         super().show()
         self.raise_()
-        self.timer.start(2500)
+        self.timer.start(2000)
 
     def hide_toast(self):
         super().hide()
@@ -333,9 +333,10 @@ class NumpadEditor(QWidget):
         self.build_ui()
 
         # Start timer to monitor NumLock status
+        self._last_numlock_state = bool(ctypes.windll.user32.GetKeyState(0x90) & 1)
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.check_numlock_status)
-        self.status_timer.start(500)
+        self.status_timer.start(100)
         self.check_numlock_status()
 
     def build_ui(self):
@@ -1268,22 +1269,19 @@ class NumpadEditor(QWidget):
             self.key_pressed_signal.emit(pos_id, action or {"type": "test", "value": "Test Trigger"})
 
     def _handle_key_pressed_toast(self, pos_id: str, action: dict):
-        num_str = pos_id.replace("num", "").replace("dot", ".").upper()
-        key_lbl = f"Numpad {num_str}"
-        t = action.get("type", "macro")
-        v = action.get("value", "")
-        desc = action.get("desc") or f"{ACTION_DISPLAY_NAMES.get(t, t)} ({v})"
-        
-        # Fast keycap press animation
-        if pos_id in self.buttons:
-            btn = self.buttons[pos_id]
-            btn.animateClick(150)
-
-        # Show Activation Toast Notification
-        self.toast.show_toast(key_lbl, desc, success=True)
+        try:
+            # Fast keycap press animation if window is visible
+            if self.isVisible() and pos_id in self.buttons:
+                btn = self.buttons[pos_id]
+                btn.animateClick()
+        except Exception as e:
+            print(f"[GUI Animation Error] {e}")
 
     def check_numlock_status(self):
-        numlock_toggled = ctypes.windll.user32.GetKeyState(0x90) & 1
+        numlock_toggled = bool(ctypes.windll.user32.GetKeyState(0x90) & 1)
+        prev = getattr(self, '_last_numlock_state', None)
+        self._last_numlock_state = numlock_toggled
+
         if not numlock_toggled:
             self.status_dot.setStyleSheet(f"color: {ACCENT_GREEN}; font-size: 12px; border: none; background: transparent;")
             self.status_lbl.setText("ENGINE ACTIVE")
@@ -1291,6 +1289,16 @@ class NumpadEditor(QWidget):
             self.status_sub.setText("— Listening for input...")
             self.sb_numlock.setText("NUM LOCK OFF = MACROS ACTIVE")
             self.sb_numlock.setStyleSheet(f"background-color: {BG_CARD}; color: {ACCENT_BLUE}; border: 1px solid {BORDER_COLOR}; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700; font-family: 'Consolas', monospace;")
+            
+            # Show toast only on actual transition
+            if prev is not None and prev != numlock_toggled:
+                if hasattr(self, 'toast') and self.toast:
+                    self.toast.show_toast(
+                        "MACROS ACTIVE",
+                        "Num Lock OFF — Physical numpad macros active",
+                        success=True,
+                        color=ACCENT_GREEN
+                    )
         else:
             self.status_dot.setStyleSheet(f"color: #f59e0b; font-size: 12px; border: none; background: transparent;")
             self.status_lbl.setText("NUMLOCK ON")
@@ -1298,3 +1306,13 @@ class NumpadEditor(QWidget):
             self.status_sub.setText("— Hardware Pass-through")
             self.sb_numlock.setText("NUMLOCK ON = PASS-THROUGH")
             self.sb_numlock.setStyleSheet(f"background-color: {BG_CARD}; color: #f59e0b; border: 1px solid {BORDER_COLOR}; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700; font-family: 'Consolas', monospace;")
+
+            # Show toast only on actual transition
+            if prev is not None and prev != numlock_toggled:
+                if hasattr(self, 'toast') and self.toast:
+                    self.toast.show_toast(
+                        "PASS-THROUGH MODE",
+                        "Num Lock ON — Standard numeric keypad",
+                        success=True,
+                        color="#f59e0b"
+                    )

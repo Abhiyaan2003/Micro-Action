@@ -31,6 +31,14 @@ class KBDLLHOOKSTRUCT(ctypes.Structure):
     ]
 
 
+# Define hook procedure type with correct 64-bit Win32 types at module level
+HOOKPROC = ctypes.WINFUNCTYPE(
+    ctypes.c_longlong, # LRESULT
+    ctypes.c_int,
+    ctypes.wintypes.WPARAM,
+    ctypes.wintypes.LPARAM
+)
+
 class KeyboardHook:
     """
     Installs WH_KEYBOARD_LL on the CALLING thread (must be the Qt main thread).
@@ -61,19 +69,12 @@ class KeyboardHook:
         self._stop_event.clear()
 
         # Start worker BEFORE installing hook
-        self._worker = threading.Thread(
-            target=self._worker_loop, daemon=True, name="HookWorker")
-        self._worker.start()
+        if self._worker is None or not self._worker.is_alive():
+            self._worker = threading.Thread(
+                target=self._worker_loop, daemon=True, name="HookWorker")
+            self._worker.start()
 
         user32 = ctypes.windll.user32
-
-        # Define hook procedure type with correct 64-bit Win32 types to prevent OverflowError
-        HOOKPROC = ctypes.WINFUNCTYPE(
-            ctypes.c_longlong, # LRESULT
-            ctypes.c_int,
-            ctypes.wintypes.WPARAM,
-            ctypes.wintypes.LPARAM
-        )
         self.pointer = HOOKPROC(self._hook_callback)
 
         # Set explicit argument and return types for the Win32 hook APIs
@@ -105,6 +106,25 @@ class KeyboardHook:
         else:
             print(f"[Hook] Installed on main thread (id={self.hook_id})")
 
+    def refresh_hook(self):
+        """
+        Re-registers WH_KEYBOARD_LL with Windows User32.
+        Called on session unlock, resume from sleep, or periodic watchdog timer.
+        Must run on the Qt main thread.
+        """
+        if self.pointer:
+            user32 = ctypes.windll.user32
+            if self.hook_id:
+                try:
+                    user32.UnhookWindowsHookEx(self.hook_id)
+                except Exception:
+                    pass
+                self.hook_id = None
+            self.hook_id = user32.SetWindowsHookExW(13, self.pointer, None, 0)
+            if not self.hook_id:
+                err = ctypes.windll.kernel32.GetLastError()
+                print(f"[Hook] Watchdog re-hook FAILED — error {err}")
+
     def uninstall(self):
         """Call from main thread."""
         if self.hook_id:
@@ -123,38 +143,46 @@ class KeyboardHook:
     # ── Callback — runs on Qt main thread, must return in < 300 ms ──────────
 
     def _hook_callback(self, nCode, wParam, lParam):
-        if nCode < 0:
-            return ctypes.windll.user32.CallNextHookEx(
-                self.hook_id, nCode, wParam, lParam)
+        try:
+            if nCode < 0:
+                return ctypes.windll.user32.CallNextHookEx(
+                    self.hook_id, nCode, wParam, lParam)
 
-        # NumLock ON → pass everything through
-        if ctypes.windll.user32.GetKeyState(0x90) & 1:
-            return ctypes.windll.user32.CallNextHookEx(
-                self.hook_id, nCode, wParam, lParam)
+            # NumLock ON → pass everything through
+            if ctypes.windll.user32.GetKeyState(0x90) & 1:
+                return ctypes.windll.user32.CallNextHookEx(
+                    self.hook_id, nCode, wParam, lParam)
 
-        kbd = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
+            if not lParam:
+                return ctypes.windll.user32.CallNextHookEx(
+                    self.hook_id, nCode, wParam, lParam)
 
-        # Distinguish numpad from nav-cluster:
-        #   LLKHF_EXTENDED (bit 0) is SET for nav-cluster, CLEAR for numpad.
-        #   Scan code must also be in the numpad range as a secondary check.
-        #   Injected keys (bit 4) are ignored to avoid feedback loops.
-        is_extended = bool(kbd.flags & 0x01)
-        is_injected = bool(kbd.flags & 0x10)
+            kbd = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
 
-        pos_id = VK_TO_POS.get(kbd.vkCode)
+            # Distinguish numpad from nav-cluster:
+            #   LLKHF_EXTENDED (bit 0) is SET for nav-cluster, CLEAR for numpad.
+            #   Scan code must also be in the numpad range as a secondary check.
+            #   Injected keys (bit 4) are ignored to avoid feedback loops.
+            is_extended = bool(kbd.flags & 0x01)
+            is_injected = bool(kbd.flags & 0x10)
 
-        if (pos_id
-                and not is_extended
-                and not is_injected
-                and kbd.scanCode in NUMPAD_SCANCODES):
+            pos_id = VK_TO_POS.get(kbd.vkCode)
 
-            action = self.config.get_action(pos_id)
-            if action:
-                try:
-                    self._event_queue.put_nowait((wParam, pos_id, action))
-                except queue.Full:
-                    pass
-                return 1    # suppress key
+            if (pos_id
+                    and not is_extended
+                    and not is_injected
+                    and kbd.scanCode in NUMPAD_SCANCODES):
+
+                action = self.config.get_action(pos_id)
+                if action:
+                    try:
+                        self._event_queue.put_nowait((wParam, pos_id, action))
+                    except queue.Full:
+                        pass
+                    return 1    # suppress key
+        except Exception as e:
+            # Guard against any unexpected exception reaching Windows User32
+            pass
 
         return ctypes.windll.user32.CallNextHookEx(
             self.hook_id, nCode, wParam, lParam)
@@ -170,37 +198,39 @@ class KeyboardHook:
             if item is None:
                 break
 
-            wParam, pos_id, action = item
-            is_down = wParam in (0x0100, 0x0104)
-            is_up   = wParam in (0x0101, 0x0105)
-            is_ptt  = action.get("type") == "ptt"
+            try:
+                wParam, pos_id, action = item
+                is_down = wParam in (0x0100, 0x0104)
+                is_up   = wParam in (0x0101, 0x0105)
+                is_ptt  = action.get("type") == "ptt"
 
-            if is_down:
-                if is_ptt:
-                    if self._ptt_active_key is None:
-                        self._ptt_active_key = pos_id
-                        print(f"[Hook] PTT START -> {pos_id}")
-                        if self.ptt_engine:
-                            self.ptt_engine.start(
-                                config_val=action.get("value", "base"))
-                else:
-                    if pos_id not in self._pressed_keys:
-                        self._pressed_keys.add(pos_id)
-                        print(f"[Hook] Action -> {pos_id}: {action}")
-                        self.action_engine.dispatch(action)
+                if is_down:
+                    if is_ptt:
+                        if self._ptt_active_key is None:
+                            self._ptt_active_key = pos_id
+                            print(f"[Hook] PTT START -> {pos_id}")
+                            if self.ptt_engine:
+                                self.ptt_engine.start(config_val=action.get("value", "base"))
+                    else:
+                        if pos_id not in self._pressed_keys:
+                            self._pressed_keys.add(pos_id)
+                            print(f"[Hook] Action -> {pos_id}: {action}")
+                            self.action_engine.dispatch(action)
 
-                # Trigger GUI notification and keypress feedback
-                if self.gui_notifier:
-                    try:
-                        self.gui_notifier(pos_id)
-                    except Exception as e:
-                        print(f"[Hook] GUI notifier error: {e}")
-            elif is_up:
-                if is_ptt:
-                    if self._ptt_active_key == pos_id:
-                        self._ptt_active_key = None
-                        print(f"[Hook] PTT STOP -> {pos_id}")
-                        if self.ptt_engine:
-                            self.ptt_engine.stop()
-                else:
-                    self._pressed_keys.discard(pos_id)
+                    # Trigger GUI notification and keypress feedback
+                    if self.gui_notifier:
+                        try:
+                            self.gui_notifier(pos_id)
+                        except Exception as e:
+                            print(f"[Hook] GUI notifier error: {e}")
+                elif is_up:
+                    if is_ptt:
+                        if self._ptt_active_key == pos_id:
+                            self._ptt_active_key = None
+                            print(f"[Hook] PTT STOP -> {pos_id}")
+                            if self.ptt_engine:
+                                self.ptt_engine.stop()
+                    else:
+                        self._pressed_keys.discard(pos_id)
+            except Exception as e:
+                print(f"[Hook Worker Error] {e}")

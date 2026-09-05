@@ -195,10 +195,16 @@ class ScreenEngine:
     def force_stop(self):
         """Force stop any active recording (used during app shutdown)."""
         with self._rec_lock:
-            if self._rec_state == self.RECORDING:
+            if self._rec_state != self.IDLE:
                 self._stop_recording_signal()
-                if self._rec_thread:
-                    self._rec_thread.join(timeout=5.0)
+        # Wait for threads to finish outside the lock
+        if self._rec_thread and self._rec_thread.is_alive():
+            self._rec_thread.join(timeout=5.0)
+        if self._timer_thread and self._timer_thread.is_alive():
+            self._timer_thread.join(timeout=2.0)
+        # Reset state
+        with self._rec_lock:
+            self._rec_state = self.IDLE
 
     def _timer_loop(self):
         while not self._stop_timer.is_set():
@@ -273,7 +279,8 @@ class ScreenEngine:
             rect = ctypes.wintypes.RECT()
             ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
             return (rect.left, rect.top, rect.right, rect.bottom)
-        except:
+        except Exception as e:
+            print(f"[ScreenRec] Could not get active window bbox: {e}")
             return None
 
     # ── Helpers ──────────────────────────────────────────────────────────────

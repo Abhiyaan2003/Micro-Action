@@ -16,34 +16,36 @@ class ActionEngine:
         self.screen_engine = screen_engine
 
     def dispatch(self, action: dict, event_type: str = "down"):
-        t = action.get("type")
-        v = action.get("value", "")
+        try:
+            t = action.get("type")
+            v = action.get("value", "")
 
-        if t == "ptt":
-            if self.ptt_engine:
-                if event_type == "down":
-                    self.ptt_engine.start()
-                else:
-                    self.ptt_engine.stop()
-            return
+            # PTT is handled directly by KeyboardHook, not here.
+            # If it somehow arrives here, ignore it safely.
+            if t == "ptt":
+                return
 
-        if event_type != "down":
-            return  # Other actions only trigger on key down
+            if event_type != "down":
+                return  # Other actions only trigger on key down
 
-        if t == "hotkey":
-            self.send_hotkey(v)
-        elif t == "website":
-            self.launch_website(v)
-        elif t == "launch":
-            self.launch_app(v)
-        elif t == "script":
-            self.run_script(v)
-        elif t == "screenshot":
-            if self.screen_engine:
-                self.screen_engine.take_screenshot(v)
-        elif t == "screenrec":
-            if self.screen_engine:
-                self.screen_engine.toggle_recording(v)
+            if t == "hotkey":
+                self.send_hotkey(v)
+            elif t == "website":
+                self.launch_website(v)
+            elif t == "launch":
+                self.launch_app(v)
+            elif t == "script":
+                self.run_script(v)
+            elif t == "screenshot":
+                if self.screen_engine:
+                    self.screen_engine.take_screenshot(v)
+            elif t == "screenrec":
+                if self.screen_engine:
+                    self.screen_engine.toggle_recording(v)
+            else:
+                print(f"[Actions] Unknown action type: '{t}'")
+        except Exception as e:
+            print(f"[Actions] Dispatch error for action '{action}': {e}")
 
     def send_hotkey(self, keys: str):
         import pyautogui
