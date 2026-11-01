@@ -5,10 +5,10 @@ from PyQt6.QtWidgets import (
     QApplication, QWidget, QGridLayout, QPushButton,
     QDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QLabel,
     QFileDialog, QDialogButtonBox, QFrame, QCheckBox, QTabWidget,
-    QStackedWidget, QSpinBox, QGraphicsDropShadowEffect, QToolButton
+    QStackedWidget, QSpinBox, QScrollArea, QGraphicsDropShadowEffect, QToolButton
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal, QPropertyAnimation, QEasingCurve, QRect
-from PyQt6.QtGui import QFont, QColor, QIcon, QPixmap, QPainter
+from PyQt6.QtGui import QFont, QColor, QFontMetrics, QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from config import get_resource_path
 
@@ -90,32 +90,29 @@ KEY_SUB_LABELS = {
     "numdot": "Delete",
 }
 
-# Theme Color Constants (Hardware Utility Dark Charcoal Aesthetic)
-BG_MAIN       = "#0f1117"   # Deep Charcoal Application Canvas
-BG_PANEL      = "#161922"   # Panel Surface
-BG_CARD       = "#1f2330"   # Card / Input Surface
-BG_CARD_HOVER = "#262b3a"   # Card Hover Surface
-BORDER_COLOR  = "#2d3345"   # Subtle Border Stroke
-BORDER_FOCUS  = "#0ea5e9"   # Focus Ring Accent (Electric Cyan/Blue)
+# Direction: Micro Action is a physical keymap, so the keycaps themselves are the
+# workspace. A graphite instrument face, one cyan selection edge and precise,
+# readable labels make the NumLock-controlled mapping legible without neon tiles.
+# The first view answers “what does each physical key do?”; selecting a cap opens
+# its real action editor beside the map. The keypad silhouette stays the signature.
+#
+# Data-terminal palette: cool charcoal surfaces, high-contrast text, cyan reserved
+# for selection and focus, and green only for the real active hook state.
+BG_MAIN       = "#1a2028"   # Graphite application canvas
+BG_PANEL      = "#111820"   # Recessed work surface
+BG_CARD       = "#0b1016"   # Keycaps and input surface
+BG_CARD_HOVER = "#1a242e"   # Interactive hover surface
+BORDER_COLOR  = "#2b3743"   # Quiet structural edge
+BORDER_FOCUS  = "#68d2dc"   # Micro Action cyan
 
-ACCENT_BLUE        = "#0ea5e9"   # Primary Accent Blue/Cyan
-ACCENT_BLUE_HOVER  = "#38bdf8"
-ACCENT_GREEN       = "#10b981"   # Status Connected / Active Green
-ACCENT_RED         = "#ef4444"   # Destructive Red / Rose
+ACCENT_BLUE        = "#68d2dc"   # Single selection and focus accent
+ACCENT_BLUE_HOVER  = "#8ce0e7"
+ACCENT_GREEN       = "#62c49b"   # Real hook / connected state
+ACCENT_RED         = "#e07b83"   # Destructive action
 
-TEXT_MAIN     = "#f8fafc"   # Bright Primary Text
-TEXT_MUTED    = "#94a3b8"   # Secondary Slate Text
-TEXT_DIM      = "#64748b"   # Dim Captions / Helper Text
-
-ACTION_COLORS = {
-    "website":    "#00b4d8",  # Electric Cyan
-    "hotkey":     "#8b5cf6",  # Violet / Purple
-    "launch":     "#ec4899",  # Pink / Magenta
-    "script":     "#10b981",  # Emerald Green
-    "ptt":        "#f59e0b",  # Amber / Orange
-    "screenshot": "#eab308",  # Canary Yellow
-    "screenrec":  "#ef4444",  # Coral Red
-}
+TEXT_MAIN     = "#f1f4f7"   # Primary text
+TEXT_MUTED    = "#b4c0cb"   # Secondary text, contrast-safe on graphite
+TEXT_DIM      = "#929fac"   # Helper text
 
 # Human-readable display names for action types
 ACTION_DISPLAY_NAMES = {
@@ -341,7 +338,7 @@ class NumpadEditor(QWidget):
 
     def build_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 14, 16, 10)
+        main_layout.setContentsMargins(20, 16, 20, 14)
         main_layout.setSpacing(12)
 
         # ── 1. APPLICATION HEADER BAR ──
@@ -349,8 +346,7 @@ class NumpadEditor(QWidget):
         header_bar.setStyleSheet(f"""
             QFrame {{
                 background-color: {BG_PANEL};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
+                border: none;
             }}
         """)
         header_layout = QHBoxLayout(header_bar)
@@ -373,17 +369,13 @@ class NumpadEditor(QWidget):
         t_row = QHBoxLayout()
         t_row.setSpacing(6)
         
-        app_title = QLabel("MICRO ACTION")
-        app_title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {TEXT_MAIN}; letter-spacing: 0.5px; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
-        
-        pro_badge = QLabel("PRO")
-        pro_badge.setStyleSheet(f"background-color: {ACCENT_BLUE}; color: #000000; border-radius: 4px; padding: 1px 5px; font-size: 9px; font-weight: 800; font-family: 'Consolas', monospace;")
+        app_title = QLabel("Micro Action")
+        app_title.setStyleSheet(f"font-size: 17px; font-weight: 650; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
         
         t_row.addWidget(app_title)
-        t_row.addWidget(pro_badge)
         t_row.addStretch()
 
-        app_sub = QLabel("Physical Numpad Macro Engine")
+        app_sub = QLabel("Your numpad, set to work")
         app_sub.setStyleSheet(f"font-size: 11px; color: {TEXT_MUTED}; border: none; background: transparent;")
         
         title_v.addLayout(t_row)
@@ -396,10 +388,8 @@ class NumpadEditor(QWidget):
         self.status_pill = QFrame()
         self.status_pill.setStyleSheet(f"""
             QFrame {{
-                background-color: {BG_CARD};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 16px;
-                padding: 2px 10px;
+                background-color: transparent;
+                border: none;
             }}
         """)
         sp_lay = QHBoxLayout(self.status_pill)
@@ -410,28 +400,16 @@ class NumpadEditor(QWidget):
         self.status_dot.setStyleSheet(f"color: {ACCENT_GREEN}; font-size: 12px; border: none; background: transparent;")
         sp_lay.addWidget(self.status_dot)
 
-        self.status_lbl = QLabel("ENGINE ACTIVE")
-        self.status_lbl.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {ACCENT_GREEN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+        self.status_lbl = QLabel("Hook active")
+        self.status_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {ACCENT_GREEN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
         sp_lay.addWidget(self.status_lbl)
 
-        self.status_sub = QLabel("— Listening for input...")
+        self.status_sub = QLabel("· Num Lock off")
         self.status_sub.setStyleSheet(f"font-size: 11px; color: {TEXT_MUTED}; border: none; background: transparent;")
         sp_lay.addWidget(self.status_sub)
 
         header_layout.addWidget(self.status_pill)
 
-        # Right Actions (Settings / Help)
-        header_actions = QHBoxLayout()
-        header_actions.setSpacing(6)
-        
-        self.settings_btn = QToolButton()
-        self.settings_btn.setIcon(get_hugeicon("hotkey", TEXT_MUTED, 16))
-        self.settings_btn.setToolTip("Global Settings")
-        self.settings_btn.setStyleSheet(f"QToolButton {{ background-color: {BG_CARD}; border: 1px solid {BORDER_COLOR}; border-radius: 6px; padding: 5px; }} QToolButton:hover {{ background-color: {BG_CARD_HOVER}; }}")
-        self.settings_btn.clicked.connect(self.show_global_settings)
-        header_actions.addWidget(self.settings_btn)
-
-        header_layout.addLayout(header_actions)
         main_layout.addWidget(header_bar)
 
         # ── 2. TWO-PANEL MAIN WORKSPACE ──
@@ -446,8 +424,7 @@ class NumpadEditor(QWidget):
         left_panel.setStyleSheet(f"""
             QFrame#leftPanel {{
                 background-color: {BG_PANEL};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
+                border: none;
             }}
         """)
         left_layout = QVBoxLayout(left_panel)
@@ -461,10 +438,10 @@ class NumpadEditor(QWidget):
         np_title_v = QVBoxLayout()
         np_title_v.setSpacing(1)
 
-        np_title = QLabel("NUMPAD")
-        np_title.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;")
+        np_title = QLabel("Key map")
+        np_title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;")
         
-        np_sub = QLabel("Press a key to configure its action")
+        np_sub = QLabel("Choose a key to assign an action")
         np_sub.setStyleSheet(f"font-size: 11px; color: {TEXT_MUTED};")
         
         np_title_v.addWidget(np_title)
@@ -473,16 +450,15 @@ class NumpadEditor(QWidget):
 
         np_header.addStretch()
 
-        self.bound_badge = QLabel("0 / 11 BOUND")
+        self.bound_badge = QLabel("0 of 11 assigned")
         self.bound_badge.setStyleSheet(f"""
-            background-color: {BG_CARD};
-            color: {ACCENT_BLUE};
-            border: 1px solid {BORDER_COLOR};
-            border-radius: 4px;
-            padding: 3px 8px;
-            font-size: 10px;
-            font-weight: 700;
-            font-family: 'Consolas', monospace;
+            background-color: transparent;
+            color: {TEXT_MUTED};
+            border: none;
+            padding: 3px 0;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Segoe UI', sans-serif;
         """)
         np_header.addWidget(self.bound_badge)
         left_layout.addLayout(np_header)
@@ -515,17 +491,17 @@ class NumpadEditor(QWidget):
         np_footer = QHBoxLayout()
         np_footer.setSpacing(8)
 
-        clear_all_btn = QPushButton("CLEAR ALL")
+        clear_all_btn = QPushButton("Clear all")
         clear_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         clear_all_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 color: {ACCENT_RED};
-                border: 1px solid {ACCENT_RED};
-                border-radius: 6px;
+                border: none;
+                border-radius: 2px;
                 font-size: 11px;
-                font-weight: 700;
-                padding: 6px 12px;
+                font-weight: 600;
+                padding: 6px 0;
             }}
             QPushButton:hover {{
                 background-color: rgba(239, 68, 68, 0.15);
@@ -539,7 +515,7 @@ class NumpadEditor(QWidget):
 
         np_footer.addStretch()
 
-        self.test_toggle = QCheckBox("TEST MODE")
+        self.test_toggle = QCheckBox("Test mode")
         self.test_toggle.setToolTip("Test key triggers without dispatching live actions")
         self.test_toggle.setStyleSheet(f"""
             QCheckBox {{
@@ -573,8 +549,7 @@ class NumpadEditor(QWidget):
         right_panel.setStyleSheet(f"""
             QFrame#rightPanel {{
                 background-color: {BG_PANEL};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 8px;
+                border: none;
             }}
         """)
         right_layout = QVBoxLayout(right_panel)
@@ -585,13 +560,13 @@ class NumpadEditor(QWidget):
         tab_header = QHBoxLayout()
         tab_header.setSpacing(10)
 
-        self.btn_tab_key = QPushButton("KEY CONFIGURATION")
+        self.btn_tab_key = QPushButton("Binding")
         self.btn_tab_key.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_tab_key.setStyleSheet(self._tab_button_style(True))
         self.btn_tab_key.clicked.connect(lambda: self.switch_workspace_tab(0))
         tab_header.addWidget(self.btn_tab_key)
 
-        self.btn_tab_global = QPushButton("GLOBAL SETTINGS")
+        self.btn_tab_global = QPushButton("Settings")
         self.btn_tab_global.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_tab_global.setStyleSheet(self._tab_button_style(False))
         self.btn_tab_global.clicked.connect(lambda: self.switch_workspace_tab(1))
@@ -613,9 +588,8 @@ class NumpadEditor(QWidget):
         self.sel_banner = QFrame()
         self.sel_banner.setStyleSheet(f"""
             QFrame {{
-                background-color: {BG_CARD};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 6px;
+                background-color: transparent;
+                border: none;
             }}
         """)
         sb_lay = QHBoxLayout(self.sel_banner)
@@ -625,7 +599,7 @@ class NumpadEditor(QWidget):
         # Selected key representation box
         self.sel_key_box = QWidget()
         self.sel_key_box.setFixedSize(48, 48)
-        self.sel_key_box.setStyleSheet(f"background-color: {BG_PANEL}; border: 1px solid {ACCENT_BLUE}; border-radius: 6px;")
+        self.sel_key_box.setStyleSheet(f"background-color: {BG_CARD}; border: none; border-bottom: 1px solid {ACCENT_BLUE}; border-radius: 2px;")
         sk_v = QVBoxLayout(self.sel_key_box)
         sk_v.setContentsMargins(0, 4, 0, 4)
         sk_v.setSpacing(0)
@@ -636,7 +610,7 @@ class NumpadEditor(QWidget):
         
         self.sel_key_sub = QLabel("Clear")
         self.sel_key_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.sel_key_sub.setStyleSheet(f"font-size: 9px; color: {TEXT_MUTED}; font-family: 'Consolas', monospace; border: none;")
+        self.sel_key_sub.setStyleSheet(f"font-size: 10px; color: {TEXT_MUTED}; font-family: 'Consolas', monospace; border: none;")
         
         sk_v.addWidget(self.sel_key_num)
         sk_v.addWidget(self.sel_key_sub)
@@ -644,10 +618,10 @@ class NumpadEditor(QWidget):
 
         sb_text_v = QVBoxLayout()
         sb_text_v.setSpacing(2)
-        self.sel_title = QLabel("SELECTED KEY: Numpad 5")
-        self.sel_title.setStyleSheet(f"font-size: 13px; font-weight: 700; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;")
+        self.sel_title = QLabel("Numpad 5 · Clear")
+        self.sel_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;")
         
-        self.sel_desc = QLabel("Configure the action assigned to this physical key.")
+        self.sel_desc = QLabel("Choose what this key should do.")
         self.sel_desc.setStyleSheet(f"font-size: 11px; color: {TEXT_MUTED};")
         
         sb_text_v.addWidget(self.sel_title)
@@ -658,7 +632,7 @@ class NumpadEditor(QWidget):
         pc_layout.addWidget(self.sel_banner)
 
         # Action Type Selector Grid
-        pc_layout.addWidget(QLabel("ACTION TYPE", styleSheet=f"font-size: 10px; font-weight: 700; color: {TEXT_DIM}; letter-spacing: 1px; font-family: 'Consolas', monospace;"))
+        pc_layout.addWidget(QLabel("Action type", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;"))
 
         type_grid = QGridLayout()
         type_grid.setSpacing(6)
@@ -698,10 +672,11 @@ class NumpadEditor(QWidget):
                 background-color: {BG_CARD};
                 color: {TEXT_MAIN};
                 border: 1px solid {BORDER_COLOR};
-                border-radius: 6px;
-                padding: 7px 10px;
+                border-radius: 4px;
+                min-height: 32px;
+                padding: 5px 10px;
                 font-size: 12px;
-                font-family: 'Consolas', monospace;
+            font-family: 'Segoe UI', sans-serif;
             }}
             QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{
                 border-color: {BORDER_FOCUS};
@@ -717,19 +692,21 @@ class NumpadEditor(QWidget):
         """
 
         # Website Target / Browser
-        self.lbl_target = QLabel("TARGET PARAMETER / URL", styleSheet=f"font-size: 10px; font-weight: 700; color: {TEXT_DIM}; letter-spacing: 1px; font-family: 'Consolas', monospace;")
+        self.lbl_target = QLabel("Website address", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
         form_lay.addWidget(self.lbl_target)
 
         val_h = QHBoxLayout()
         val_h.setSpacing(6)
         
         self.val_input = QLineEdit()
+        self.val_input.setMinimumHeight(34)
         self.val_input.setPlaceholderText("e.g. youtube.com or Ctrl+Shift+T")
         self.val_input.setStyleSheet(input_style)
         self.val_input.textChanged.connect(self.on_form_changed)
         val_h.addWidget(self.val_input)
 
         self.browse_btn = QPushButton("Browse...")
+        self.browse_btn.setMinimumHeight(34)
         self.browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.browse_btn.setStyleSheet(f"""
             QPushButton {{
@@ -749,28 +726,31 @@ class NumpadEditor(QWidget):
         form_lay.addLayout(val_h)
 
         # Open in Browser Dropdown (Website only)
-        self.lbl_browser = QLabel("PREFERRED BROWSER", styleSheet=f"font-size: 10px; font-weight: 700; color: {TEXT_DIM}; letter-spacing: 1px; font-family: 'Consolas', monospace;")
+        self.lbl_browser = QLabel("Open with", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
         form_lay.addWidget(self.lbl_browser)
         
         self.browser_combo = QComboBox()
+        self.browser_combo.setMinimumHeight(34)
         self.browser_combo.setStyleSheet(input_style)
         self.browser_combo.addItems(["Default Browser", "Google Chrome", "Mozilla Firefox", "Microsoft Edge", "Brave Browser"])
         self.browser_combo.currentTextChanged.connect(self.on_form_changed)
         form_lay.addWidget(self.browser_combo)
 
         # Capture Scope (Screenshot / Screenrec)
-        self.lbl_capture = QLabel("CAPTURE SCOPE", styleSheet=f"font-size: 10px; font-weight: 700; color: {TEXT_DIM}; letter-spacing: 1px; font-family: 'Consolas', monospace;")
+        self.lbl_capture = QLabel("Capture area", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
         form_lay.addWidget(self.lbl_capture)
 
         self.capture_combo = QComboBox()
+        self.capture_combo.setMinimumHeight(34)
         self.capture_combo.setStyleSheet(input_style)
         self.capture_combo.addItems(["Full Screen", "Primary Monitor", "Active Window"])
         self.capture_combo.currentTextChanged.connect(self.on_form_changed)
         form_lay.addWidget(self.capture_combo)
 
         # Optional Description Label
-        form_lay.addWidget(QLabel("DESCRIPTION (OPTIONAL)", styleSheet=f"font-size: 10px; font-weight: 700; color: {TEXT_DIM}; letter-spacing: 1px; font-family: 'Consolas', monospace;"))
+        form_lay.addWidget(QLabel("Description (optional)", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;"))
         self.desc_input = QLineEdit()
+        self.desc_input.setMinimumHeight(34)
         self.desc_input.setPlaceholderText("e.g. Open Dev Terminal")
         self.desc_input.setStyleSheet(input_style)
         self.desc_input.textChanged.connect(self.on_form_changed)
@@ -789,6 +769,7 @@ class NumpadEditor(QWidget):
         self.spin_delay.setRange(0, 5000)
         self.spin_delay.setSuffix(" ms")
         self.spin_delay.setValue(50)
+        self.spin_delay.setMinimumHeight(34)
         self.spin_delay.setStyleSheet(input_style)
         
         adv_h.addWidget(self.cb_delay)
@@ -804,26 +785,27 @@ class NumpadEditor(QWidget):
         act_bar = QHBoxLayout()
         act_bar.setSpacing(10)
 
-        self.save_btn = QPushButton("SAVE BINDING")
+        self.save_btn = QPushButton("Save binding")
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {ACCENT_BLUE};
-                color: #ffffff;
+                background-color: {TEXT_MAIN};
+                color: {BG_MAIN};
                 border: none;
-                border-radius: 6px;
-                padding: 9px 20px;
+                border-radius: 3px;
+                padding: 9px 18px;
                 font-size: 12px;
                 font-weight: 700;
                 font-family: 'Segoe UI', sans-serif;
             }}
-            QPushButton:hover {{ background-color: {ACCENT_BLUE_HOVER}; }}
-            QPushButton:pressed {{ background-color: #0284c7; }}
+            QPushButton:hover {{ background-color: #dce5eb; }}
+            QPushButton:pressed {{ background-color: #c9d4dc; }}
+            QPushButton:disabled {{ background-color: {BG_CARD}; color: {TEXT_DIM}; }}
         """)
         self.save_btn.clicked.connect(self.save_current_action)
         act_bar.addWidget(self.save_btn)
 
-        self.reset_btn = QPushButton("RESET KEY")
+        self.reset_btn = QPushButton("Reset key")
         self.reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.reset_btn.setStyleSheet(f"""
             QPushButton {{
@@ -841,9 +823,22 @@ class NumpadEditor(QWidget):
         act_bar.addWidget(self.reset_btn)
 
         act_bar.addStretch()
-        pc_layout.addLayout(act_bar)
+        config_scroll = QScrollArea()
+        config_scroll.setWidgetResizable(True)
+        config_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        config_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        config_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        config_scroll.setStyleSheet(f"QScrollArea {{ border: none; background: transparent; }} QScrollBar:vertical {{ width: 6px; background: transparent; margin: 2px; }} QScrollBar::handle:vertical {{ background: {BORDER_COLOR}; border-radius: 3px; min-height: 24px; }} QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}")
+        page_config.setStyleSheet(f"background-color: {BG_PANEL};")
+        config_scroll.setWidget(page_config)
 
-        self.stack.addWidget(page_config)
+        config_page = QWidget()
+        config_page_layout = QVBoxLayout(config_page)
+        config_page_layout.setContentsMargins(0, 0, 0, 0)
+        config_page_layout.setSpacing(8)
+        config_page_layout.addWidget(config_scroll, 1)
+        config_page_layout.addLayout(act_bar)
+        self.stack.addWidget(config_page)
 
         # ── PAGE 1: Global Settings ──
         page_global = QWidget()
@@ -851,7 +846,7 @@ class NumpadEditor(QWidget):
         pg_layout.setContentsMargins(0, 0, 0, 0)
         pg_layout.setSpacing(14)
 
-        pg_layout.addWidget(QLabel("SYSTEM PREFERENCES", styleSheet=f"font-size: 12px; font-weight: 700; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;"))
+        pg_layout.addWidget(QLabel("System preferences", styleSheet=f"font-size: 16px; font-weight: 600; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;"))
 
         self.cb_autostart = QCheckBox("Start Micro Action automatically on Windows boot")
         self.cb_autostart.setChecked(True)
@@ -872,8 +867,8 @@ class NumpadEditor(QWidget):
         self.stack.addWidget(page_global)
 
         right_layout.addWidget(self.stack)
-        workspace_layout.addWidget(right_panel, stretch=52)
         workspace_layout.addWidget(left_panel, stretch=48)
+        workspace_layout.addWidget(right_panel, stretch=52)
 
         main_layout.addLayout(workspace_layout)
 
@@ -882,34 +877,33 @@ class NumpadEditor(QWidget):
         self.status_bar_frame.setStyleSheet(f"""
             QFrame {{
                 background-color: {BG_PANEL};
-                border: 1px solid {BORDER_COLOR};
-                border-radius: 6px;
+                border: none;
             }}
         """)
         sb_h = QHBoxLayout(self.status_bar_frame)
         sb_h.setContentsMargins(12, 6, 12, 6)
         sb_h.setSpacing(12)
 
-        self.sb_device = QLabel("● Hardware Connected")
-        self.sb_device.setStyleSheet(f"color: {ACCENT_GREEN}; font-size: 11px; font-weight: 700; font-family: 'Consolas', monospace;")
+        self.sb_device = QLabel("Keyboard hook active")
+        self.sb_device.setStyleSheet(f"color: {ACCENT_GREEN}; font-size: 11px; font-weight: 600; font-family: 'Segoe UI', sans-serif;")
         sb_h.addWidget(self.sb_device)
 
         sb_h.addWidget(QLabel("|", styleSheet=f"color: {BORDER_COLOR};"))
 
-        self.sb_config_count = QLabel("0 / 11 Macros Configured")
-        self.sb_config_count.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-family: 'Consolas', monospace;")
+        self.sb_config_count = QLabel("0 of 11 keys assigned")
+        self.sb_config_count.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-family: 'Segoe UI', sans-serif;")
         sb_h.addWidget(self.sb_config_count)
 
         sb_h.addWidget(QLabel("|", styleSheet=f"color: {BORDER_COLOR};"))
 
-        self.sb_profile = QLabel("Profile: Default")
-        self.sb_profile.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-family: 'Consolas', monospace;")
+        self.sb_profile = QLabel("Profile · Default")
+        self.sb_profile.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-family: 'Segoe UI', sans-serif;")
         sb_h.addWidget(self.sb_profile)
 
         sb_h.addStretch()
 
-        self.sb_numlock = QLabel("NUM LOCK OFF = MACROS ACTIVE")
-        self.sb_numlock.setStyleSheet(f"background-color: {BG_CARD}; color: {ACCENT_BLUE}; border: 1px solid {BORDER_COLOR}; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700; font-family: 'Consolas', monospace;")
+        self.sb_numlock = QLabel("Macros active · Num Lock off")
+        self.sb_numlock.setStyleSheet(f"background-color: transparent; color: {TEXT_MUTED}; border: none; border-bottom: 1px solid {ACCENT_BLUE}; padding: 3px 0; font-size: 11px; font-weight: 600; font-family: 'Segoe UI', sans-serif;")
         sb_h.addWidget(self.sb_numlock)
 
         main_layout.addWidget(self.status_bar_frame)
@@ -919,66 +913,41 @@ class NumpadEditor(QWidget):
         self.update_bound_count()
 
     def _tab_button_style(self, active: bool) -> str:
-        if active:
-            return f"""
-                QPushButton {{
-                    background-color: {BG_CARD};
-                    color: {ACCENT_BLUE};
-                    border: 1px solid {BORDER_COLOR};
-                    border-bottom: 2px solid {ACCENT_BLUE};
-                    border-radius: 6px;
-                    padding: 6px 14px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    font-family: 'Segoe UI', sans-serif;
-                }}
-            """
-        else:
-            return f"""
-                QPushButton {{
-                    background-color: transparent;
-                    color: {TEXT_MUTED};
-                    border: 1px solid transparent;
-                    border-radius: 6px;
-                    padding: 6px 14px;
-                    font-size: 11px;
-                    font-weight: 600;
-                }}
-                QPushButton:hover {{ background-color: {BG_CARD}; color: {TEXT_MAIN}; }}
-            """
+        color = ACCENT_BLUE if active else TEXT_MUTED
+        underline = f"border-bottom: 1px solid {ACCENT_BLUE};" if active else "border-bottom: 1px solid transparent;"
+        return f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {color};
+                border: none;
+                {underline}
+                padding: 7px 2px;
+                font-size: 12px;
+                font-weight: {600 if active else 500};
+                font-family: 'Segoe UI', sans-serif;
+            }}
+            QPushButton:hover {{ color: {TEXT_MAIN}; }}
+            QPushButton:focus {{ border-bottom: 1px solid {ACCENT_BLUE}; }}
+        """
 
     def _action_type_button_style(self, active: bool) -> str:
-        if active:
-            return f"""
-                QPushButton {{
-                    background-color: {ACCENT_BLUE};
-                    color: #ffffff;
-                    border: 1px solid {ACCENT_BLUE};
-                    border-radius: 6px;
-                    padding: 7px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    text-align: left;
-                }}
-            """
-        else:
-            return f"""
-                QPushButton {{
-                    background-color: {BG_CARD};
-                    color: {TEXT_MUTED};
-                    border: 1px solid {BORDER_COLOR};
-                    border-radius: 6px;
-                    padding: 7px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    text-align: left;
-                }}
-                QPushButton:hover {{
-                    background-color: {BG_CARD_HOVER};
-                    color: {TEXT_MAIN};
-                    border-color: {BORDER_FOCUS};
-                }}
-            """
+        color = ACCENT_BLUE if active else TEXT_MUTED
+        underline = f"border-bottom: 1px solid {ACCENT_BLUE};" if active else "border-bottom: 1px solid transparent;"
+        return f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {color};
+                border: none;
+                {underline}
+                border-radius: 0;
+                padding: 8px 5px;
+                font-size: 11px;
+                font-weight: {600 if active else 500};
+                text-align: left;
+            }}
+            QPushButton:hover {{ color: {TEXT_MAIN}; background-color: {BG_CARD}; }}
+            QPushButton:focus {{ border-bottom: 1px solid {ACCENT_BLUE}; }}
+        """
 
     def switch_workspace_tab(self, index: int):
         self.stack.setCurrentIndex(index)
@@ -992,7 +961,8 @@ class NumpadEditor(QWidget):
         btn = QPushButton()
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setProperty("key_label", label)
-        btn.setFixedSize(110, 84) if pos_id != "num0" else btn.setFixedSize(230, 84)
+        btn.setAccessibleName(f"Numpad {KEY_LABELS.get(pos_id, pos_id)}")
+        btn.setFixedSize(120, 88) if pos_id != "num0" else btn.setFixedSize(250, 88)
         
         self.update_button_style(btn, pos_id)
         btn.clicked.connect(lambda _, pid=pos_id: self.select_key(pid))
@@ -1014,12 +984,23 @@ class NumpadEditor(QWidget):
         sub_str = KEY_SUB_LABELS.get(pos_id, "")
         self.sel_key_num.setText(num_str)
         self.sel_key_sub.setText(sub_str)
-        self.sel_title.setText(f"SELECTED KEY: Numpad {num_str} ({sub_str})")
+        self.sel_title.setText(f"Numpad {num_str} · {sub_str}")
 
         # Load action config for this key
         action = self.config.get_action(pos_id)
         if action:
             act_type = action.get("type", "website")
+            action_name = ACTION_DISPLAY_NAMES.get(act_type, "Action")
+            preview = action.get("desc", "") or action.get("value", "")
+            if act_type == "website" and "|" in preview:
+                _, preview = preview.split("|", 1)
+            elif act_type in ("launch", "script"):
+                preview = os.path.basename(preview)
+            elif act_type == "ptt":
+                preview = "Hold to dictate"
+            elif act_type in ("screenshot", "screenrec"):
+                preview = REVERSE_MODE_MAP.get(preview.split("|")[0], "Full Screen")
+            self.sel_desc.setText(f"{action_name} · {preview}" if preview else action_name)
             self.select_action_type(act_type, update_fields=False)
             val = action.get("value", "")
             if act_type == "website" and "|" in val:
@@ -1032,6 +1013,7 @@ class NumpadEditor(QWidget):
             self.desc_input.setText(action.get("desc", ""))
         else:
             # Default empty state
+            self.sel_desc.setText("Choose what this key should do.")
             self.select_action_type("website", update_fields=False)
             self.val_input.setText("")
             self.desc_input.setText("")
@@ -1061,13 +1043,13 @@ class NumpadEditor(QWidget):
         self.val_input.setVisible(show_val)
 
         if is_web:
-            self.lbl_target.setText("WEBSITE TARGET URL")
+            self.lbl_target.setText("Website address")
             self.val_input.setPlaceholderText("e.g. youtube.com or github.com")
         elif act_type == "hotkey":
-            self.lbl_target.setText("KEYBOARD SHORTCUT")
+            self.lbl_target.setText("Keyboard shortcut")
             self.val_input.setPlaceholderText("e.g. ctrl+shift+t or win+d")
         else:
-            self.lbl_target.setText("ACTION PARAMETER / PATH")
+            self.lbl_target.setText("Action parameter or path")
             self.val_input.setPlaceholderText("Enter file path or argument...")
 
         self.browse_btn.setVisible(act_type in ["launch", "script"])
@@ -1104,9 +1086,8 @@ class NumpadEditor(QWidget):
         self.config.set_action(self.selected_key, action)
         self.config.save()
 
-        # Update Keycap Button Presentation
-        if self.selected_key in self.buttons:
-            self.update_button_style(self.buttons[self.selected_key], self.selected_key)
+        # Refresh the keycap and its adjacent assignment summary from saved data.
+        self.select_key(self.selected_key)
 
         # Show Save Confirmation Toast
         num_str = self.selected_key.replace("num", "").replace("dot", ".").upper()
@@ -1140,22 +1121,21 @@ class NumpadEditor(QWidget):
         parts = label.split('\n')
         prim = parts[0]
         sub = parts[1] if len(parts) > 1 else ""
-
         is_selected = (pos_id == self.selected_key)
 
-        # Setup custom internal layout
         layout = btn.layout()
         if layout is None:
             layout = QVBoxLayout(btn)
-            layout.setContentsMargins(8, 6, 8, 6)
-            layout.setSpacing(0)
+            layout.setContentsMargins(9, 7, 9, 7)
+            layout.setSpacing(2)
 
             top_h = QHBoxLayout()
             top_h.setContentsMargins(0, 0, 0, 0)
-            
+            top_h.setSpacing(4)
+
             prim_label = QLabel()
             prim_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            
+
             sub_label = QLabel()
             sub_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             sub_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
@@ -1168,43 +1148,36 @@ class NumpadEditor(QWidget):
 
             badge_box = QWidget()
             badge_box.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            b_lay = QHBoxLayout(badge_box)
-            b_lay.setContentsMargins(4, 2, 4, 2)
-            b_lay.setSpacing(4)
+            b_lay = QVBoxLayout(badge_box)
+            b_lay.setContentsMargins(0, 0, 0, 0)
+            b_lay.setSpacing(1)
 
-            icon_label = QLabel()
-            icon_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-
+            type_label = QLabel()
+            type_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             val_label = QLabel()
             val_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-
-            b_lay.addWidget(icon_label)
+            type_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            val_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            b_lay.addWidget(type_label)
             b_lay.addWidget(val_label)
-            b_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(badge_box)
 
             btn.prim_label = prim_label
             btn.sub_label = sub_label
             btn.badge_box = badge_box
-            btn.icon_label = icon_label
+            btn.type_label = type_label
             btn.val_label = val_label
 
         btn.prim_label.setText(prim)
         btn.sub_label.setText(sub)
         btn.setText("")
-
-        border_st = f"2px solid {ACCENT_BLUE}" if is_selected else f"1px solid {BORDER_COLOR}"
-        bg_st = "#0f283d" if is_selected else BG_CARD
-
-        btn.prim_label.setStyleSheet(f"font-size: 26px; font-weight: 700; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
-        btn.sub_label.setStyleSheet(f"font-size: 9px; color: {TEXT_MUTED}; font-family: 'Consolas', monospace; border: none; background: transparent;")
+        btn.prim_label.setStyleSheet(f"font-size: 25px; font-weight: 650; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+        btn.sub_label.setStyleSheet(f"font-size: 10px; color: {TEXT_MUTED}; font-family: 'Consolas', monospace; border: none; background: transparent;")
 
         if action:
             t = action.get("type", "")
             v = action.get("value", "")
             desc = action.get("desc", "")
-            t_col = ACTION_COLORS.get(t, ACCENT_BLUE)
-
             display_val = desc or v
             if t == "website":
                 if "|" in display_val:
@@ -1213,48 +1186,56 @@ class NumpadEditor(QWidget):
                     display_val = display_val.replace("https://", "").replace("http://", "").replace("www.", "")
             elif t in ("launch", "script"):
                 display_val = os.path.basename(display_val)
+            elif t == "ptt":
+                display_val = "Hold to dictate"
+            elif t in ("screenshot", "screenrec"):
+                display_val = REVERSE_MODE_MAP.get(v.split("|")[0], "Full Screen")
 
-            if len(display_val) > 13:
-                display_val = display_val[:11] + ".."
-
-            btn.badge_box.setStyleSheet(f"background-color: rgba(14, 165, 233, 0.15); border: 1px solid {t_col}; border-radius: 4px;")
-            ic_px = get_hugeicon_pixmap(t, t_col, 12)
-
-            if not ic_px.isNull():
-                btn.icon_label.setPixmap(ic_px)
-                btn.icon_label.show()
-            else:
-                btn.icon_label.hide()
-
-            btn.val_label.setText(display_val)
-            btn.val_label.setStyleSheet(f"font-size: 9px; font-weight: 700; color: {TEXT_MAIN}; font-family: 'Consolas', monospace; border: none; background: transparent;")
+            compact_name = {
+                "website": "Website", "hotkey": "Shortcut", "launch": "Application",
+                "script": "Script", "ptt": "Speech to text", "screenshot": "Screenshot",
+                "screenrec": "Screen recording",
+            }.get(t, ACTION_DISPLAY_NAMES.get(t, t.title()))
+            btn.type_label.setText(compact_name)
+            btn.type_label.setStyleSheet(f"font-size: 10px; font-weight: 500; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+            btn.val_label.setStyleSheet(f"font-size: 10px; font-weight: 600; color: {TEXT_MAIN}; font-family: 'Consolas', monospace; border: none; background: transparent;")
+            metrics = QFontMetrics(btn.val_label.font())
+            btn.val_label.setText(metrics.elidedText(display_val, Qt.TextElideMode.ElideMiddle, max(24, btn.width() - 20)))
+            btn.setToolTip(f"Numpad {prim} / {sub}\n{compact_name}: {display_val}")
+            btn.setAccessibleDescription(f"Assigned action: {compact_name}. {display_val}.")
         else:
-            btn.badge_box.setStyleSheet(f"background-color: transparent; border: 1px dashed {BORDER_COLOR}; border-radius: 4px;")
-            btn.icon_label.hide()
-            btn.val_label.setText("+ BIND")
-            btn.val_label.setStyleSheet(f"font-size: 9px; color: {TEXT_DIM}; font-family: 'Consolas', monospace; border: none; background: transparent;")
+            btn.type_label.setText("Unassigned")
+            btn.type_label.setStyleSheet(f"font-size: 10px; font-weight: 500; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+            btn.val_label.setText("Select to configure")
+            btn.val_label.setStyleSheet(f"font-size: 10px; color: {TEXT_DIM}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+            btn.setToolTip(f"Numpad {prim} / {sub}\nNo action assigned. Select to configure.")
+            btn.setAccessibleDescription("Unassigned. Select to configure an action.")
 
+        # One 1px cyan edge is the entire selected-state treatment.
+        selection = ACCENT_BLUE if is_selected else BORDER_COLOR
         btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: {bg_st};
-                border: {border_st};
-                border-radius: 8px;
+                background-color: {BG_CARD};
+                color: {TEXT_MAIN};
+                border: none;
+                border-bottom: 1px solid {selection};
+                border-radius: 2px;
             }}
             QPushButton:hover {{
                 background-color: {BG_CARD_HOVER};
-                border-color: {BORDER_FOCUS};
             }}
             QPushButton:pressed {{
-                background-color: #0b1d2e;
+                background-color: {BG_PANEL};
             }}
+            QPushButton:focus {{ border-bottom: 1px solid {ACCENT_BLUE}; }}
         """)
 
     def update_bound_count(self):
         count = sum(1 for pid in KEY_LABELS if self.config.get_action(pid))
         if hasattr(self, 'bound_badge'):
-            self.bound_badge.setText(f"{count} / 11 BOUND")
+            self.bound_badge.setText(f"{count} of 11 assigned")
         if hasattr(self, 'sb_config_count'):
-            self.sb_config_count.setText(f"{count} / 11 Macros Configured")
+            self.sb_config_count.setText(f"{count} of 11 keys assigned")
 
     def on_test_mode_toggled(self, checked: bool):
         self.test_mode = checked
@@ -1284,11 +1265,11 @@ class NumpadEditor(QWidget):
 
         if not numlock_toggled:
             self.status_dot.setStyleSheet(f"color: {ACCENT_GREEN}; font-size: 12px; border: none; background: transparent;")
-            self.status_lbl.setText("ENGINE ACTIVE")
-            self.status_lbl.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {ACCENT_GREEN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
-            self.status_sub.setText("— Listening for input...")
-            self.sb_numlock.setText("NUM LOCK OFF = MACROS ACTIVE")
-            self.sb_numlock.setStyleSheet(f"background-color: {BG_CARD}; color: {ACCENT_BLUE}; border: 1px solid {BORDER_COLOR}; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700; font-family: 'Consolas', monospace;")
+            self.status_lbl.setText("Macros active")
+            self.status_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {ACCENT_GREEN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+            self.status_sub.setText("· Num Lock off")
+            self.sb_numlock.setText("Macros active · Num Lock off")
+            self.sb_numlock.setStyleSheet(f"background-color: transparent; color: {TEXT_MUTED}; border: none; border-bottom: 1px solid {ACCENT_BLUE}; padding: 3px 0; font-size: 11px; font-weight: 600; font-family: 'Segoe UI', sans-serif;")
             
             # Show toast only on actual transition
             if prev is not None and prev != numlock_toggled:
@@ -1300,12 +1281,12 @@ class NumpadEditor(QWidget):
                         color=ACCENT_GREEN
                     )
         else:
-            self.status_dot.setStyleSheet(f"color: #f59e0b; font-size: 12px; border: none; background: transparent;")
-            self.status_lbl.setText("NUMLOCK ON")
-            self.status_lbl.setStyleSheet(f"font-size: 11px; font-weight: 700; color: #f59e0b; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
-            self.status_sub.setText("— Hardware Pass-through")
-            self.sb_numlock.setText("NUMLOCK ON = PASS-THROUGH")
-            self.sb_numlock.setStyleSheet(f"background-color: {BG_CARD}; color: #f59e0b; border: 1px solid {BORDER_COLOR}; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700; font-family: 'Consolas', monospace;")
+            self.status_dot.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px; border: none; background: transparent;")
+            self.status_lbl.setText("Number keys active")
+            self.status_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
+            self.status_sub.setText("· Num Lock on")
+            self.sb_numlock.setText("Number keys active · Num Lock on")
+            self.sb_numlock.setStyleSheet(f"background-color: transparent; color: {TEXT_MUTED}; border: none; border-bottom: 1px solid {BORDER_COLOR}; padding: 3px 0; font-size: 11px; font-weight: 600; font-family: 'Segoe UI', sans-serif;")
 
             # Show toast only on actual transition
             if prev is not None and prev != numlock_toggled:
@@ -1314,5 +1295,5 @@ class NumpadEditor(QWidget):
                         "PASS-THROUGH MODE",
                         "Num Lock ON — Standard numeric keypad",
                         success=True,
-                        color="#f59e0b"
+                        color=TEXT_MUTED
                     )

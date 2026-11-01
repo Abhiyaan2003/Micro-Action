@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12" />
-  <img src="https://img.shields.io/badge/PyQt6-Neo--Brutalist-0ea5e9?style=for-the-badge&logo=qt&logoColor=white" alt="PyQt6 UI" />
+  <img src="https://img.shields.io/badge/PyQt6-Keymap%20Editor-0ea5e9?style=for-the-badge&logo=qt&logoColor=white" alt="PyQt6 keymap editor" />
   <img src="https://img.shields.io/badge/Whisper-Speech--to--Text-000000?style=for-the-badge&logo=openai&logoColor=white" alt="Whisper AI" />
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
 </p>
@@ -41,8 +41,14 @@ By hooking low-level Windows keyboard inputs via `WH_KEYBOARD_LL`, Micro Action 
 - ⌨️ **Global Hotkey Dispatcher**: Trigger complex keyboard combinations (e.g. `Ctrl+Shift+T`, `Win+D`, `Alt+Tab`) with a single keypress.
 - 📸 **Screen Capture Engine**: Capture full screen, primary monitor, or active window snapshots complete with a custom visual shutter flash.
 - 🎥 **Screen Recording Engine**: Record screen sessions directly with smooth MP4 output.
-- 🎨 **Neo-Brutalist UI**: Modern high-contrast dark interface powered by **PyQt6** and vector **Hugeicons** keycap badges.
+- ⌨️ **Physical Keymap Editor**: A minimal-glass PyQt6 workspace that mirrors the 11-key numpad, shows each key’s current action, and keeps its binding editor alongside the map. Light and dark appearances are supported.
 - 🤫 **Silent System Tray Operation**: Runs unobtrusively in the background with quick profile switching and tray controls.
+
+---
+
+## 🎨 Interface appearance
+
+The Glass editor is the default. Open **Settings** to follow Windows light/dark mode or choose an appearance directly. The Classic editor remains available as a theme option and takes effect after restarting the app. The visual specification is in [DESIGN.md](DESIGN.md). To preview the Glass editor without starting the keyboard hook or action engines, run `python dev_preview.py`.
 
 ---
 

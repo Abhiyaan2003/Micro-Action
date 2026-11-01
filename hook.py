@@ -51,6 +51,7 @@ class KeyboardHook:
         self.action_engine  = action_engine
         self.ptt_engine     = ptt_engine
         self.gui_notifier   = None
+        self.numlock_notifier = None
         self.hook_id        = None
         self.pointer        = None          # keep WINFUNCTYPE alive
 
@@ -148,16 +149,22 @@ class KeyboardHook:
                 return ctypes.windll.user32.CallNextHookEx(
                     self.hook_id, nCode, wParam, lParam)
 
-            # NumLock ON → pass everything through
-            if ctypes.windll.user32.GetKeyState(0x90) & 1:
-                return ctypes.windll.user32.CallNextHookEx(
-                    self.hook_id, nCode, wParam, lParam)
-
             if not lParam:
                 return ctypes.windll.user32.CallNextHookEx(
                     self.hook_id, nCode, wParam, lParam)
 
             kbd = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
+
+            # Notify the UI after Windows has updated the toggle state. The
+            # notifier is expected to be a queued Qt signal emitter.
+            if kbd.vkCode == 0x90 and wParam in (0x0100, 0x0104):
+                if self.numlock_notifier:
+                    self.numlock_notifier(not bool(ctypes.windll.user32.GetKeyState(0x90) & 1))
+
+            # NumLock ON → pass everything through
+            if ctypes.windll.user32.GetKeyState(0x90) & 1:
+                return ctypes.windll.user32.CallNextHookEx(
+                    self.hook_id, nCode, wParam, lParam)
 
             # Distinguish numpad from nav-cluster:
             #   LLKHF_EXTENDED (bit 0) is SET for nav-cluster, CLEAR for numpad.

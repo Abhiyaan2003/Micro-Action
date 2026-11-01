@@ -6,7 +6,7 @@
 
 Operating silently in the system tray, it intercepts numpad keypresses when **NumLock is OFF**, suppressing default navigation keystrokes and executing customizable automated actions. Beyond basic shortcuts and app launching, Micro Action features a built-in offline **Whisper Push-to-Talk (PTT)** speech-to-text engine and a full **Screen Capture & Recording Engine**.
 
-The visual GUI editor follows a **Neo-Brutalist** design language with 1:1 hardware keycap mapping, heavy black ink outlines, solid offset drop shadows, and neon action color coding.
+The visual GUI editor follows a restrained instrument-panel design. Its 1:1 physical keymap leads the workspace, assigned actions are written directly on the keycaps, and one cyan 1px edge marks the selected key and active editor controls.
 
 ---
 
@@ -14,15 +14,15 @@ The visual GUI editor follows a **Neo-Brutalist** design language with 1:1 hardw
 
 Micro Action supports seven distinct action types assignable to any of the 11 numpad positions (`num7`, `num8`, `num9`, `num4`, `num5`, `num6`, `num1`, `num2`, `num3`, `num0`, `numdot`):
 
-| Action Type | Icon | Color Accent | Description | Parameter Format |
+| Action Type | Icon | UI Cue | Description | Parameter Format |
 |---|---|---|---|---|
-| **Web Link** | 🌐 `WEB` | Stark Yellow (`#ffe359`) | Opens URLs in default web browser | `https://example.com` |
-| **Hotkey** | ⚡ `HOTKEY` | Hotkey Blue (`#80b3ff`) | Sends synthetic key combinations | `ctrl+shift+t` |
-| **Launch App** | 🚀 `LAUNCH` | Launch Pink (`#ff9fbc`) | Launches executable applications | `C:\Windows\explorer.exe` |
-| **Script** | 📜 `SCRIPT` | Script Green (`#58d68d`) | Executes scripts in background | `path/to/script.ps1` (`.ps1`, `.bat`, `.cmd`, `.py`) |
-| **Push-to-Talk** | 🎙️ `PTT` | PTT Orange (`#ff9f1c`) | Hold key to record voice with live transcription preview | `tiny`, `base`, `small`, `medium`, `large-v3` |
-| **Screenshot** | 📸 `SCREENSHOT` | Cyan (`#00f0ff`) | Captures screen to disk and/or clipboard with audio/visual flash feedback | `mode|clipboard=true|save=true` |
-| **Screen Record** | 🎥 `SCREENREC` | Red (`#ff4d4d`) | Toggles video recording of screen | `mode|fps=15` |
+| **Web Link** | 🌐 `WEB` | Neutral icon and action name | Opens URLs in default web browser | `https://example.com` |
+| **Hotkey** | ⚡ `HOTKEY` | Neutral icon and action name | Sends synthetic key combinations | `ctrl+shift+t` |
+| **Launch App** | 🚀 `LAUNCH` | Neutral icon and action name | Launches executable applications | `C:\Windows\explorer.exe` |
+| **Script** | 📜 `SCRIPT` | Neutral icon and action name | Executes scripts in background | `path/to/script.ps1` (`.ps1`, `.bat`, `.cmd`, `.py`) |
+| **Push-to-Talk** | 🎙️ `PTT` | Neutral icon and action name | Hold key to record voice with live transcription preview | `tiny`, `base`, `small`, `medium`, `large-v3` |
+| **Screenshot** | 📸 `SCREENSHOT` | Neutral icon and action name | Captures screen to disk and/or clipboard with audio/visual flash feedback | `mode|clipboard=true|save=true` |
+| **Screen Record** | 🎥 `SCREENREC` | Neutral icon and action name | Toggles video recording of screen | `mode|fps=15` |
 | **Volume / Brightness** | 🔊 / ☀️ | System Gray | Adjusts Windows master volume or monitor brightness | Delta percentage (`+10`, `-10`) |
 
 ---
@@ -53,7 +53,7 @@ Micro Action supports seven distinct action types assignable to any of the 11 nu
 ┌──────────────────▼──────┐ ┌───────▼─────────┐ ┌─────▼──────────────────┐
 │ PTT Engine & Overlay    │ │ Screen Engine   │ │ Qt Main GUI Window     │
 │ (`ptt_engine.py`)       │ │ (`screen_engine.py`)│ (`gui.py`)           │
-│ • PyAudio 16kHz Stream  │ │ • mss capture   │ │ • Neo-Brutalist Grid   │
+│ • PyAudio 16kHz Stream  │ │ • mss capture   │ │ • Live physical keymap │
 │ • faster-whisper (CTrans)│ │ • OpenCV video  │ │ • Single-Instance Mutex│
 │ • Floating PTT Overlay  │ │ • Flash Overlay │ │ • Thread-safe Signals  │
 └─────────────────────────┘ └─────────────────┘ └────────────────────────┘
@@ -84,15 +84,15 @@ When NumLock is OFF, Windows sends standard navigation keycodes (`VK_HOME`, `VK_
 
 ---
 
-## 5. Design System: Neo-Brutalist Edition
+## 5. Design System: Instrument UI
 
-The user interface follows the **Neo-Brutalist** visual style specified in `DESIGN.md`:
+The current interface is documented in `DESIGN.md`:
 
-- **Primary Canvas**: Warm cardboard beige (`#f4f2ed`).
-- **Containers**: Stark white plate (`#ffffff`) surrounded by `2px` or `3px` solid black borders (`#000000`).
-- **Elevation**: Zero soft blurred shadows. All elevation uses flat solid offset drop shadows (`border-right: 5px solid #000; border-bottom: 5px solid #000;`).
-- **Press Interaction**: Clicking buttons collapses the offset shadow to `2px` while applying top-left offset padding to mimic mechanical keypresses.
-- **Typography**: Display/Keycap labels use heavy chunky typography (`Impact, Arial Black`), while subtext uses clean monospace (`Consolas`).
+- **Canvas and surfaces**: Graphite application ground with recessed panels and near-black keycaps.
+- **Keymap**: The physical 11-key layout is the main work surface; each assigned cap shows its action and a shortened destination.
+- **Selection**: One cyan 1px edge marks the selected key, active workspace tab, and selected action type.
+- **Typography**: Segoe UI carries interface copy; Consolas is limited to physical key legends and compact key values.
+- **Compact windows**: Binding fields scroll inside their panel while Save and Reset remain available.
 
 ---
 
@@ -101,7 +101,7 @@ The user interface follows the **Neo-Brutalist** visual style specified in `DESI
 ```
 Micro-Action/
 ├── main.py                   # App entry point & event loop
-├── gui.py                    # Neo-Brutalist PyQt6 Editor UI
+├── gui.py                    # PyQt6 physical keymap and binding editor
 ├── hook.py                   # Low-level Windows WH_KEYBOARD_LL hook
 ├── actions.py                # Action execution engine dispatcher
 ├── config.py                 # JSON configuration manager
@@ -113,7 +113,7 @@ Micro-Action/
 ├── qt.conf                   # Qt environment configuration
 ├── MicroAction.spec          # PyInstaller bundle build specification
 ├── PRODUCT.md                # Product positioning & user context
-├── DESIGN.md                 # Neo-Brutalist design tokens & specs
+├── DESIGN.md                 # Instrument UI design tokens and interaction states
 ├── numpad-macropad-guide.md  # Architecture design guide reference
 ├── assets/                   # Static resources (icon.png, shutter.wav)
 ├── scripts/                  # Development & helper scripts

@@ -17,6 +17,7 @@ from config import Config, get_resource_path
 from actions import ActionEngine
 from hook import KeyboardHook
 from gui import NumpadEditor
+from ui.main_window import GlassNumpadEditor
 from tray import SystemTrayApp
 
 # IPC socket name — only used to wake up a running instance's window.
@@ -28,7 +29,7 @@ MUTEX_NAME   = "Local\\MicroAction_SingleInstance_Mutex"
 _g_mutex_handle = None
 
 
-class MainWindow(NumpadEditor):
+class LegacyMainWindow(NumpadEditor):
     """
     Subclass of NumpadEditor to orchestrate thread-safe GUI signals,
     window close events (minimize to tray), and clean application exits.
@@ -153,6 +154,106 @@ class MainWindow(NumpadEditor):
             app.quit()
 
 
+class MainWindow(GlassNumpadEditor):
+    """Glass editor with the existing tray, hook watchdog and IPC lifecycle."""
+    show_signal = pyqtSignal()
+    exit_signal = pyqtSignal()
+    numlock_signal = pyqtSignal(bool)
+
+    def __init__(self, config, hook, ptt=None, overlay=None, screen_engine=None, ipc_server=None):
+        super().__init__(config, ptt, overlay)
+        self.hook = hook
+        self.ptt = ptt
+        self.overlay = overlay
+        self.screen_engine = screen_engine
+        self.ipc_server = ipc_server
+        if ipc_server:
+            ipc_server.newConnection.connect(self._handle_ipc_connection)
+        self.show_signal.connect(self.show_and_raise)
+        self.exit_signal.connect(self.app_exit)
+        self.numlock_signal.connect(self._on_numlock_state)
+        self._watchdog = QTimer(self)
+        self._watchdog.setInterval(10000)
+        self._watchdog.timeout.connect(self._watchdog_tick)
+        self._watchdog.start()
+
+    def _on_numlock_state(self, macros_active):
+        # Low-level hooks run before Windows flips the toggle bit. Read it
+        # shortly after the key event has completed so the display matches OS state.
+        QTimer.singleShot(25, self._sync_numlock_state)
+
+    def _sync_numlock_state(self):
+        macros_active = not bool(ctypes.windll.user32.GetKeyState(0x90) & 1)
+        self.set_numlock_state(macros_active)
+        if self.config.get_setting("notify_on_toggle", True) and self.overlay:
+            self.overlay.show_state(macros_active)
+        if self.config.get_setting("notify_sound", False):
+            try:
+                import winsound
+                winsound.MessageBeep(winsound.MB_OK)
+            except (ImportError, RuntimeError):
+                pass
+        tray = getattr(self, "tray", None)
+        if tray:
+            tray.set_macros_active(macros_active)
+
+    def _watchdog_tick(self):
+        if self.hook and not self.hook.is_active:
+            self.hook.install()
+
+    def nativeEvent(self, eventType, message):
+        if eventType == b"windows_generic_MSG" and message:
+            try:
+                msg = ctypes.wintypes.MSG.from_address(int(message))
+                if msg.message in (0x02B1, 0x0218) and self.hook:
+                    self.hook.refresh_hook()
+            except Exception:
+                pass
+        return False, 0
+
+    def _handle_ipc_connection(self):
+        if not self.ipc_server:
+            return
+        conn = self.ipc_server.nextPendingConnection()
+        if conn is None:
+            return
+        def _on_data():
+            try:
+                if bytes(conn.readAll()).strip() == b"SHOW":
+                    self.show_signal.emit()
+            finally:
+                conn.disconnectFromServer()
+        conn.readyRead.connect(_on_data)
+        conn.disconnected.connect(conn.deleteLater)
+
+    def show_and_raise(self):
+        self.setWindowState((self.windowState() & ~Qt.WindowState.WindowMinimized) | Qt.WindowState.WindowActive)
+        self.showNormal()
+        self.show()
+        self.activateWindow()
+        self.raise_()
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+
+    def app_exit(self):
+        if self.ipc_server:
+            self.ipc_server.close()
+        QLocalServer.removeServer(SOCKET_NAME)
+        if self.hook:
+            self.hook.uninstall()
+        if self.ptt:
+            self.ptt.shutdown()
+        if self.screen_engine:
+            self.screen_engine.force_stop()
+        if self.overlay:
+            self.overlay.close()
+        app = QApplication.instance()
+        if app:
+            app.quit()
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _acquire_mutex():
@@ -248,16 +349,16 @@ def main():
     # ── 6. Core subsystems ────────────────────────────────────────────────────
     config = Config()
 
-    from ptt_overlay import PTTOverlay
     from ptt_engine  import PTTEngine
-    overlay    = PTTOverlay()
+    from ui.overlays import OverlayPill
+    overlay    = OverlayPill(config.get_setting("appearance", "system"))
     ptt_engine = PTTEngine(config=config, overlay=overlay)
 
     action_engine = ActionEngine()
     action_engine.set_ptt(ptt_engine, overlay)
 
-    from flash_overlay import ScreenFlashOverlay
     from screen_engine import ScreenEngine
+    from flash_overlay import ScreenFlashOverlay
     flash_overlay = ScreenFlashOverlay()
     screen_engine = ScreenEngine(config=config, overlay=overlay,
                                   flash_overlay=flash_overlay)
@@ -266,9 +367,12 @@ def main():
     hook = KeyboardHook(config, action_engine, ptt_engine)
 
     # ── 7. Main window + tray ─────────────────────────────────────────────────
-    main_window = MainWindow(config, hook, ptt_engine, overlay,
-                              screen_engine, ipc_server=ipc_server)
+    window_class = LegacyMainWindow if config.get_setting("theme", "glass") == "neo" else MainWindow
+    main_window = window_class(config, hook, ptt_engine, overlay, screen_engine, ipc_server=ipc_server)
     hook.gui_notifier = main_window.trigger_physical_key_press
+    if hasattr(main_window, "numlock_signal"):
+        hook.numlock_notifier = main_window.numlock_signal.emit
+        main_window.set_numlock_state(not bool(ctypes.windll.user32.GetKeyState(0x90) & 1), animate=False)
 
     tray_icon_path = get_resource_path(os.path.join("assets", "icon.png"))
     if not os.path.exists(tray_icon_path) and os.path.exists(icon_path):
@@ -280,6 +384,9 @@ def main():
         on_exit=lambda: main_window.exit_signal.emit()
     )
     tray.start()
+    main_window.tray = tray
+    if hasattr(main_window, "_macros_active"):
+        tray.set_macros_active(main_window._macros_active)
 
     main_window.show()
 

@@ -68,3 +68,17 @@ class Config:
         else:
             self.data["keys"][pos_id] = action
 
+    def get_setting(self, key: str, default=None):
+        """Read an optional preference without changing legacy config files."""
+        defaults = {
+            "theme": "glass",
+            "appearance": "system",
+            "notify_on_toggle": True,
+            "notify_sound": False,
+        }
+        return self.data.get(key, defaults.get(key, default))
+
+    def set_setting(self, key: str, value):
+        """Persist an optional top-level setting while retaining existing keys."""
+        self.data[key] = value
+

@@ -1,6 +1,6 @@
 import os
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
-from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtGui import QIcon, QAction, QPixmap, QColor, QImage
 from PyQt6.QtCore import QObject
 
 
@@ -16,16 +16,14 @@ class SystemTrayApp(QObject):
         self.on_exit = on_exit
         self.tray_icon = None
         self.menu = None
+        self._base_icon = QIcon(icon_path) if os.path.exists(icon_path) else QIcon()
 
     def start(self):
         if not QSystemTrayIcon.isSystemTrayAvailable():
             print("[Tray] System tray is not available on this platform.")
             return
 
-        if os.path.exists(self.icon_path):
-            icon = QIcon(self.icon_path)
-        else:
-            icon = QIcon()
+        icon = self._base_icon
 
         self.menu = QMenu()
         show_action = QAction("Configure...", self.menu)
@@ -44,6 +42,27 @@ class SystemTrayApp(QObject):
         self.tray_icon.activated.connect(self._on_activated)
         self.tray_icon.show()
         print("[Tray] Native QSystemTrayIcon initialized.")
+
+    def set_macros_active(self, active: bool):
+        if not self.tray_icon:
+            return
+        if active:
+            icon = self._base_icon
+        elif not self._base_icon.isNull():
+            source = self._base_icon.pixmap(32, 32)
+            original = source.toImage().convertToFormat(QImage.Format.Format_RGBA8888)
+            image = QImage(original.size(), QImage.Format.Format_RGBA8888)
+            image.fill(QColor(0, 0, 0, 0))
+            for y in range(original.height()):
+                for x in range(original.width()):
+                    pixel = original.pixelColor(x, y)
+                    gray = round(pixel.red() * 0.299 + pixel.green() * 0.587 + pixel.blue() * 0.114)
+                    image.setPixelColor(x, y, QColor(gray, gray, gray, pixel.alpha()))
+            icon = QIcon(QPixmap.fromImage(image))
+        else:
+            icon = self._base_icon
+        self.tray_icon.setIcon(icon)
+        self.tray_icon.setToolTip("Micro Action · macros on" if active else "Micro Action · macros off")
 
     def _on_activated(self, reason):
         if reason in (
