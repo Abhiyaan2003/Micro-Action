@@ -1,17 +1,17 @@
-**Micro Action** — turn any numpad into a silent Stream Deck for Windows. Assign hotkeys, URLs, apps, scripts, or speech-to-text assign to a key. No scripting, no extra hardware.
+**KeySpark** — turn any numpad into a silent Stream Deck for Windows. Assign hotkeys, URLs, apps, scripts, or speech-to-text assign to a key. No scripting, no extra hardware.
 
 <!-- Replace with demo GIF once recorded, currently showcasing the social preview banner -->
-![Micro Action](.github/social-preview.png)
+![KeySpark](.github/social-preview.png)
 
 ```powershell
 # One-command launch — no Python required (PowerShell)
-irm https://github.com/Abhiyaan2003/Micro-Action/releases/latest/download/MicroAction-v2.0.0-windows-x64.zip -OutFile MicroAction.zip; Expand-Archive MicroAction.zip -DestinationPath MicroAction; .\MicroAction\MicroAction.exe
+irm https://github.com/Abhiyaan2003/KeySpark/releases/latest/download/KeySpark-v2.0.0-windows-x64.zip -OutFile KeySpark.zip; Expand-Archive KeySpark.zip -DestinationPath KeySpark; .\KeySpark\KeySpark.exe
 ```
 
 <p align="center">
-  <a href="https://github.com/Abhiyaan2003/Micro-Action/releases/latest"><img src="https://img.shields.io/github/v/release/Abhiyaan2003/Micro-Action?style=for-the-badge&label=Download&color=0078D6" alt="Latest Release" /></a>
+  <a href="https://github.com/Abhiyaan2003/KeySpark/releases/latest"><img src="https://img.shields.io/github/v/release/Abhiyaan2003/KeySpark?style=for-the-badge&label=Download&color=0078D6" alt="Latest Release" /></a>
   <a href="https://youtu.be/YOUR_VIDEO_ID"><img src="https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge" alt="Watch Demo" /></a>
-  <a href="https://github.com/Abhiyaan2003/Micro-Action/actions/workflows/ci.yml"><img src="https://github.com/Abhiyaan2003/Micro-Action/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/Abhiyaan2003/KeySpark/actions/workflows/ci.yml"><img src="https://github.com/Abhiyaan2003/KeySpark/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" /></a>
 </p>
 
@@ -26,9 +26,9 @@ irm https://github.com/Abhiyaan2003/Micro-Action/releases/latest/download/MicroA
 
 ## 🌟 Overview
 
-**Micro Action** is a high-performance Windows desktop application designed to transform any standard physical USB or Bluetooth numeric keypad into a fully custom macro controller (Stream Deck alternative).
+**KeySpark** is a high-performance Windows desktop application designed to transform any standard physical USB or Bluetooth numeric keypad into a fully custom macro controller (Stream Deck alternative).
 
-By hooking low-level Windows keyboard inputs via `WH_KEYBOARD_LL`, Micro Action selectively intercepts keypresses **only when `NumLock` is turned OFF**, leaving standard numeric typing when `NumLock` is ON 100% untouched.
+By hooking low-level Windows keyboard inputs via `WH_KEYBOARD_LL`, KeySpark selectively intercepts keypresses **only when `NumLock` is turned OFF**, leaving standard numeric typing when `NumLock` is ON 100% untouched.
 
 ---
 
@@ -52,7 +52,7 @@ The Glass editor is the default. Open **Settings** to follow Windows light/dark 
 
 ## 🎹 Physical Numpad Mapping
 
-Micro Action maps the **11 primary navigation keys** available on a standard numeric keypad when `NumLock` is **OFF**:
+KeySpark maps the **11 primary navigation keys** available on a standard numeric keypad when `NumLock` is **OFF**:
 
 | Key Position | Virtual Key | Human Label | Default Purpose |
 | :--- | :--- | :--- | :--- |
@@ -112,8 +112,8 @@ graph TD
 
 1. **Clone repository**:
    ```bash
-   git clone https://github.com/Abhiyaan2003/Micro-Action.git
-   cd Micro-Action
+   git clone https://github.com/Abhiyaan2003/KeySpark.git
+   cd KeySpark
    ```
 
 2. **Create virtual environment & install dependencies**:
@@ -130,16 +130,16 @@ graph TD
 
 4. **Compile Standalone Executable**:
    ```bash
-   pyinstaller MicroAction.spec --noconfirm
+   pyinstaller KeySpark.spec --noconfirm
    ```
-   *The standalone binary will be output to `dist/MicroAction/MicroAction.exe`.*
+   *The standalone binary will be output to `dist/KeySpark/KeySpark.exe`.*
 
 ---
 
 ## 🛠️ Project Structure
 
 ```
-Micro-Action/
+KeySpark/
 ├── main.py                  # Application entry point & Qt lifecycle
 ├── gui.py                   # PyQt6 Main Window & Numpad visual layout
 ├── hook.py                  # Windows WH_KEYBOARD_LL low-level input hook
@@ -152,7 +152,7 @@ Micro-Action/
 ├── tray.py                  # System tray icon & context menu
 ├── assets/                  # High-contrast Hugeicons vector SVGs
 ├── requirements.txt         # Python project dependencies
-└── MicroAction.spec         # PyInstaller build specification
+└── KeySpark.spec            # PyInstaller build specification
 ```
 
 ---

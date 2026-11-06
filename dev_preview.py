@@ -13,8 +13,8 @@ from ui.main_window import GlassNumpadEditor
 
 def main() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("Micro Action Preview")
-    preview_config = os.path.join(tempfile.gettempdir(), "micro-action-preview.json")
+    app.setApplicationName("KeySpark Preview")
+    preview_config = os.path.join(tempfile.gettempdir(), "keyspark-preview.json")
     window = GlassNumpadEditor(Config(preview_config))
     window.show()
     return app.exec()

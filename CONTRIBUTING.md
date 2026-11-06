@@ -1,4 +1,4 @@
-# Contributing to Micro Action
+# Contributing to KeySpark
 
 Thanks for taking the time to contribute! This guide covers everything you need to go from zero to a merged pull request.
 
@@ -21,8 +21,8 @@ Thanks for taking the time to contribute! This guide covers everything you need 
 
 ```powershell
 # 1. Clone
-git clone https://github.com/Abhiyaan2003/Micro-Action.git
-cd Micro-Action
+git clone https://github.com/Abhiyaan2003/KeySpark.git
+cd KeySpark
 
 # 2. Create a virtual environment and install dependencies
 python -m venv venv
@@ -64,11 +64,11 @@ Add a test for every bug fix and every new action type you introduce.
 
 ```powershell
 pip install pyinstaller
-pyinstaller MicroAction.spec --noconfirm
+pyinstaller KeySpark.spec --noconfirm
 ```
 
-The compiled binary lands at `dist/MicroAction/MicroAction.exe`.  
-The spec file (`MicroAction.spec`) is the single source of truth for packaging — edit it if you add new data files or hidden imports.
+The compiled binary lands at `dist/KeySpark/KeySpark.exe`.  
+The spec file (`KeySpark.spec`) is the single source of truth for packaging — edit it if you add new data files or hidden imports.
 
 ---
 
@@ -98,7 +98,7 @@ A maintainer will review within a few days. Small, focused PRs merge fastest.
 
 ## 6 · Reporting bugs
 
-Please use the [Bug Report issue template](https://github.com/Abhiyaan2003/Micro-Action/issues/new?template=bug_report.yml).  
+Please use the [Bug Report issue template](https://github.com/Abhiyaan2003/KeySpark/issues/new?template=bug_report.yml).  
 Include:
 - Windows version
 - Python version (if running from source)
@@ -108,5 +108,5 @@ Include:
 
 ---
 
-Questions? Start a [Discussion](https://github.com/Abhiyaan2003/Micro-Action/discussions) rather than opening an issue — it keeps the issue tracker for bugs and features only.
+Questions? Start a [Discussion](https://github.com/Abhiyaan2003/KeySpark/discussions) rather than opening an issue — it keeps the issue tracker for bugs and features only.
 

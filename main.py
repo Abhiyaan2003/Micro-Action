@@ -40,8 +40,8 @@ from tray import SystemTrayApp
 
 # IPC socket name — only used to wake up a running instance's window.
 # The NAMED MUTEX below is the authoritative single-instance guard.
-SOCKET_NAME  = "MicroAction_ShowWindow_IPC"
-MUTEX_NAME   = "Local\\MicroAction_SingleInstance_Mutex"
+SOCKET_NAME  = "KeySpark_ShowWindow_IPC"
+MUTEX_NAME   = "Local\\KeySpark_SingleInstance_Mutex"
 
 # Kept alive as a global so the OS does not release it while we run.
 _g_mutex_handle = None
@@ -328,7 +328,7 @@ def enable_autostart():
             r"Software\Microsoft\Windows\CurrentVersion\Run",
             0, winreg.KEY_SET_VALUE
         )
-        winreg.SetValueEx(key, "MicroAction", 0, winreg.REG_SZ, exe_path)
+        winreg.SetValueEx(key, "KeySpark", 0, winreg.REG_SZ, exe_path)
         winreg.CloseKey(key)
         print(f"[Startup] Autostart registered: {exe_path}")
     except Exception as e:
@@ -342,7 +342,7 @@ def main():
 
     # ── 1. Set AppUserModelID (cosmetic, non-fatal) ───────────────────────────
     try:
-        myappid = "Google.MicroAction.NumpadMacro.1.0"
+        myappid = "KeySpark.NumpadMacro.1.0"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception as e:
         print(f"[App] AppUserModelID error: {e}")

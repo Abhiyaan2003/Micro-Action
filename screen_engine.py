@@ -11,8 +11,8 @@ import ctypes
 import ctypes.wintypes
 from datetime import datetime
 
-DEFAULT_SCREENSHOT_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "Micro Action", "Screenshots")
-DEFAULT_RECORDING_DIR = os.path.join(os.path.expanduser("~"), "Videos", "Micro Action", "Recordings")
+DEFAULT_SCREENSHOT_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "KeySpark", "Screenshots")
+DEFAULT_RECORDING_DIR = os.path.join(os.path.expanduser("~"), "Videos", "KeySpark", "Recordings")
 
 
 class ScreenEngine:

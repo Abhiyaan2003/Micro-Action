@@ -56,7 +56,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='MicroAction',
+    name='KeySpark',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -76,5 +76,6 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='MicroAction',
+    name='KeySpark',
 )
+

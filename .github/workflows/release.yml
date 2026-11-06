@@ -42,19 +42,19 @@ jobs:
 
       # ── 4. Build ─────────────────────────────────────────────────────────────
       - name: Build Executable with PyInstaller
-        run: pyinstaller MicroAction.spec --noconfirm
+        run: pyinstaller KeySpark.spec --noconfirm
 
       # ── 5. Verify build output ───────────────────────────────────────────────
       - name: Verify Build Output
         shell: pwsh
         run: |
-          $exe = "dist/MicroAction/MicroAction.exe"
+          $exe = "dist/KeySpark/KeySpark.exe"
           if (-not (Test-Path $exe)) {
             Write-Error "Build failed: $exe not found."
             exit 1
           }
           $size = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-          Write-Output "MicroAction.exe built successfully ($size MB)"
+          Write-Output "KeySpark.exe built successfully ($size MB)"
 
       # ── 6. Resolve version tag ────────────────────────────────────────────────
       - name: Resolve Release Tag
@@ -77,10 +77,10 @@ jobs:
         shell: pwsh
         run: |
           $tag     = "${{ steps.tag.outputs.tag }}"
-          $zipName = "MicroAction-$tag-windows-x64.zip"
-          $packageRoot = (Resolve-Path "dist/MicroAction").Path
+          $zipName = "KeySpark-$tag-windows-x64.zip"
+          $packageRoot = (Resolve-Path "dist/KeySpark").Path
           $packagePaths = @(
-            (Join-Path $packageRoot "MicroAction.exe"),
+            (Join-Path $packageRoot "KeySpark.exe"),
             (Join-Path $packageRoot "_internal")
           )
           foreach ($path in $packagePaths) {
@@ -95,8 +95,8 @@ jobs:
 
           $archive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path (Get-Location) $zipName))
           try {
-            if (-not ($archive.Entries.FullName -contains "MicroAction.exe")) {
-              throw "Release ZIP does not contain MicroAction.exe"
+            if (-not ($archive.Entries.FullName -contains "KeySpark.exe")) {
+              throw "Release ZIP does not contain KeySpark.exe"
             }
           } finally { $archive.Dispose() }
 
@@ -136,7 +136,7 @@ jobs:
           |------|---------|
           | ``$zipName`` | ``$sha`` |
 
-          > **No Python required.** Extract the ZIP and run ``MicroAction.exe`` directly.
+          > **No Python required.** Extract the ZIP and run ``KeySpark.exe`` directly.
           "@
 
           Set-Content -Path "release_notes.md" -Value $body
@@ -147,7 +147,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: "MicroAction ${{ steps.tag.outputs.tag }}"
+          name: "KeySpark ${{ steps.tag.outputs.tag }}"
           body_path: release_notes.md
           files: |
             ${{ steps.package.outputs.zip_name }}

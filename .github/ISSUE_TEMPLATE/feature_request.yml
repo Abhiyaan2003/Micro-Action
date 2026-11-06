@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have an idea that would make Micro Action better? Great — fill in the details below.
+        Have an idea that would make KeySpark better? Great — fill in the details below.
 
   - type: textarea
     id: problem

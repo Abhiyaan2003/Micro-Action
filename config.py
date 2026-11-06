@@ -29,12 +29,15 @@ def get_resource_path(relative_path: str) -> str:
 
 
 DEFAULT_CONFIG_PATH = os.path.join(
+    os.getenv("APPDATA", ""), "KeySpark", "config.json"
+)
+LEGACY_CONFIG_PATH = os.path.join(
     os.getenv("APPDATA", ""), "NumpadMacroPad", "config.json"
 )
 
 class Config:
     """
-    Manages JSON configuration stored at %APPDATA%/NumpadMacroPad/config.json.
+    Manages JSON configuration stored at %APPDATA%/KeySpark/config.json.
     
     PTT action configuration schema:
         "num5": {
@@ -48,6 +51,17 @@ class Config:
         self.load()
 
     def load(self):
+        # Auto-migrate from legacy NumpadMacroPad directory if present
+        if not os.path.exists(self.path) and os.path.exists(LEGACY_CONFIG_PATH):
+            try:
+                with open(LEGACY_CONFIG_PATH, "r", encoding="utf-8") as f:
+                    self.data = json.load(f)
+                self.save()
+                print(f"[Config] Migrated legacy config from {LEGACY_CONFIG_PATH} to {self.path}")
+                return
+            except Exception as e:
+                print(f"[Config] Error migrating legacy config: {e}")
+
         if os.path.exists(self.path):
             try:
                 with open(self.path, "r", encoding="utf-8") as f:

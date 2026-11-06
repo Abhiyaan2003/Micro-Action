@@ -67,7 +67,7 @@ class GlassNumpadEditor(QWidget):
         self.test_mode = False
 
         self.setObjectName("glassMain")
-        self.setWindowTitle("Micro Action")
+        self.setWindowTitle("KeySpark")
         self.setMinimumSize(820, 540)
         self.resize(960, 600)
         self._build_ui()
@@ -83,7 +83,7 @@ class GlassNumpadEditor(QWidget):
 
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
-        self.title = QLabel("Micro Action")
+        self.title = QLabel("KeySpark")
         self.title.setStyleSheet("color: #FFFFFF; font-size: 18px; font-weight: 700; background: transparent;")
         header.addWidget(self.title)
         header.addStretch(1)
@@ -537,7 +537,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.config = config
         self.theme = theme
-        self.setWindowTitle("Micro Action settings")
+        self.setWindowTitle("KeySpark settings")
         self.setMinimumWidth(360)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 20, 22, 20)

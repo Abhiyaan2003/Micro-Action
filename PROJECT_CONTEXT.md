@@ -1,10 +1,10 @@
-# Micro Action — Complete System Context & Architecture Guide
+# KeySpark — Complete System Context & Architecture Guide
 
 ## 1. Executive Summary
 
-**Micro Action** is a high-performance Windows background utility that transforms any standard physical numeric keyboard keypad into an active, custom hardware macro controller (similar to a Stream Deck). 
+**KeySpark** is a high-performance Windows background utility that transforms any standard physical numeric keyboard keypad into an active, custom hardware macro controller (similar to a Stream Deck). 
 
-Operating silently in the system tray, it intercepts numpad keypresses when **NumLock is OFF**, suppressing default navigation keystrokes and executing customizable automated actions. Beyond basic shortcuts and app launching, Micro Action features a built-in offline **Whisper Push-to-Talk (PTT)** speech-to-text engine and a full **Screen Capture & Recording Engine**.
+Operating silently in the system tray, it intercepts numpad keypresses when **NumLock is OFF**, suppressing default navigation keystrokes and executing customizable automated actions. Beyond basic shortcuts and app launching, KeySpark features a built-in offline **Whisper Push-to-Talk (PTT)** speech-to-text engine and a full **Screen Capture & Recording Engine**.
 
 The visual GUI editor follows a restrained instrument-panel design. Its 1:1 physical keymap leads the workspace, assigned actions are written directly on the keycaps, and one cyan 1px edge marks the selected key and active editor controls.
 
@@ -12,7 +12,7 @@ The visual GUI editor follows a restrained instrument-panel design. Its 1:1 phys
 
 ## 2. Core Capabilities & Action Types
 
-Micro Action supports seven distinct action types assignable to any of the 11 numpad positions (`num7`, `num8`, `num9`, `num4`, `num5`, `num6`, `num1`, `num2`, `num3`, `num0`, `numdot`):
+KeySpark supports seven distinct action types assignable to any of the 11 numpad positions (`num7`, `num8`, `num9`, `num4`, `num5`, `num6`, `num1`, `num2`, `num3`, `num0`, `numdot`):
 
 | Action Type | Icon | UI Cue | Description | Parameter Format |
 |---|---|---|---|---|
@@ -99,7 +99,7 @@ The current interface is documented in `DESIGN.md`:
 ## 6. Project Directory Layout
 
 ```
-Micro-Action/
+KeySpark/
 ├── main.py                   # App entry point & event loop
 ├── gui.py                    # PyQt6 physical keymap and binding editor
 ├── hook.py                   # Low-level Windows WH_KEYBOARD_LL hook
@@ -111,7 +111,7 @@ Micro-Action/
 ├── flash_overlay.py          # Screen capture shutter flash overlay
 ├── tray.py                   # System tray icon service
 ├── qt.conf                   # Qt environment configuration
-├── MicroAction.spec          # PyInstaller bundle build specification
+├── KeySpark.spec             # PyInstaller bundle build specification
 ├── PRODUCT.md                # Product positioning & user context
 ├── DESIGN.md                 # Instrument UI design tokens and interaction states
 ├── numpad-macropad-guide.md  # Architecture design guide reference
@@ -160,7 +160,7 @@ Configuration is saved in `%APPDATA%/NumpadMacroPad/config.json`:
 The project is compiled into a standalone Windows executable using PyInstaller:
 
 ```bash
-pyinstaller MicroAction.spec
+pyinstaller KeySpark.spec
 ```
 
-`MicroAction.spec` configures single-folder bundling (`onefile=False` for fast startup), includes `assets/` and `qt.conf`, bundles PyAudio/OpenCV binaries, and sets `app_icon.ico` as the executable icon. `get_resource_path()` in code resolves assets seamlessly in both development mode and compiled `sys._MEIPASS` runtime.
+`KeySpark.spec` configures single-folder bundling (`onefile=False` for fast startup), includes `assets/` and `qt.conf`, bundles PyAudio/OpenCV binaries, and sets `app_icon.ico` as the executable icon. `get_resource_path()` in code resolves assets seamlessly in both development mode and compiled `sys._MEIPASS` runtime.

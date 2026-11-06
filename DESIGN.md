@@ -1,4 +1,4 @@
-# design.md — Minimal Glass UI for Micro Action (MacroDeck)
+# design.md — Minimal Glass UI for KeySpark (MacroDeck)
 
 A quiet, dark, slightly luminous interface inspired by Apple's Liquid Glass, adapted for a Windows + PyQt6 tray utility. Glass is used only where it earns its place (key tiles and overlays). Everything else is flat, dark and spacious.
 
@@ -99,7 +99,7 @@ Fallback stack: Segoe UI, Inter, Arial. Sentence case. No all-caps. No Impact or
 Two columns, 40 px apart, below a header.
 
 ```
-Header:  Micro Action (title)                  [● NumLock off, macros on]
+Header:  KeySpark (title)                      [● NumLock off, macros on]
 Left:    Key grid, 3 columns
            7  8  9
            4  5  6
@@ -168,8 +168,8 @@ Same overlay pill, two lines of text.
 
 | State | Icon | Title | Subtitle |
 |---|---|---|---|
-| On | 3×3 numpad icon, stroke `on` (`#4ADE9A`) | **Micro Action is on** (600) | Your numpad now runs macros (`text.dim`, 12 px) |
-| Off | same icon with a diagonal slash, stroke `off` (`#8B91A3`) | **Micro Action is off** (600) | Your numpad types numbers again (`text.dim`, 12 px) |
+| On | 3×3 numpad icon, stroke `on` (`#4ADE9A`) | **KeySpark is on** (600) | Your numpad now runs macros (`text.dim`, 12 px) |
+| Off | same icon with a diagonal slash, stroke `off` (`#8B91A3`) | **KeySpark is off** (600) | Your numpad types numbers again (`text.dim`, 12 px) |
 
 - Shows for 2.4 s.
 - Fires on every NumLock change, not on app start. Optionally a single quiet "on" notification at launch.

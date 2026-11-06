@@ -23,7 +23,7 @@ body:
       label: Steps to reproduce
       description: Exact steps to make the bug happen.
       placeholder: |
-        1. Open Micro Action
+        1. Open KeySpark
         2. Turn NumLock OFF
         3. Press Num 0 (Speech to Text key)
         4. See error
@@ -49,7 +49,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Micro Action version
+      label: KeySpark version
       placeholder: "e.g. v2.0.0 (from the About dialog or release ZIP name)"
     validations:
       required: true

@@ -97,7 +97,7 @@ KEY_SUB_LABELS = {
     "numdot": "Delete",
 }
 
-# Direction: Micro Action is a physical keymap, so the keycaps themselves are the
+# Direction: KeySpark is a physical keymap, so the keycaps themselves are the
 # workspace. A graphite instrument face, one cyan selection edge and precise,
 # readable labels make the NumLock-controlled mapping legible without neon tiles.
 # The first view answers “what does each physical key do?”; selecting a cap opens
@@ -110,7 +110,7 @@ BG_PANEL      = "#111820"   # Recessed work surface
 BG_CARD       = "#0b1016"   # Keycaps and input surface
 BG_CARD_HOVER = "#1a242e"   # Interactive hover surface
 BORDER_COLOR  = "#2b3743"   # Quiet structural edge
-BORDER_FOCUS  = "#68d2dc"   # Micro Action cyan
+BORDER_FOCUS  = "#68d2dc"   # KeySpark cyan
 
 ACCENT_BLUE        = "#68d2dc"   # Single selection and focus accent
 ACCENT_BLUE_HOVER  = "#8ce0e7"
@@ -308,7 +308,7 @@ class NumpadEditor(QWidget):
         self.buttons = {}
         self.action_buttons = {}
 
-        self.setWindowTitle("Micro Action — Physical Numpad Controller")
+        self.setWindowTitle("KeySpark — Physical Numpad Controller")
         self.setMinimumSize(920, 640)
         self.resize(960, 660)
 
@@ -376,7 +376,7 @@ class NumpadEditor(QWidget):
         t_row = QHBoxLayout()
         t_row.setSpacing(6)
         
-        app_title = QLabel("Micro Action")
+        app_title = QLabel("KeySpark")
         app_title.setStyleSheet(f"font-size: 17px; font-weight: 650; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif; border: none; background: transparent;")
         
         t_row.addWidget(app_title)
@@ -855,7 +855,7 @@ class NumpadEditor(QWidget):
 
         pg_layout.addWidget(_styled_label("System preferences", f"font-size: 16px; font-weight: 600; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;"))
 
-        self.cb_autostart = QCheckBox("Start Micro Action automatically on Windows boot")
+        self.cb_autostart = QCheckBox("Start KeySpark automatically on Windows boot")
         self.cb_autostart.setChecked(True)
         self.cb_autostart.setStyleSheet(cb_style)
         pg_layout.addWidget(self.cb_autostart)

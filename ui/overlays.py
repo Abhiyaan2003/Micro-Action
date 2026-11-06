@@ -230,11 +230,11 @@ class OverlayPill(QWidget):
         self.icon_label.show()
         if active:
             self.icon_label.setPixmap(icon_pixmap("numpad", self.theme.on, 22))
-            title = "Micro Action is on"
+            title = "KeySpark is on"
             color = self.theme.on
         else:
             self.icon_label.setPixmap(icon_pixmap("numpad-off", self.theme.off, 22))
-            title = "Micro Action is off"
+            title = "KeySpark is off"
             color = self.theme.off
         self.title_label.setText(title)
         self.title_label.setStyleSheet(stylesheet_tokens(f"color: {color}; font-size: 13px; font-weight: 600; background: transparent;"))

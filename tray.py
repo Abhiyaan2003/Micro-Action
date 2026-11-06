@@ -37,7 +37,7 @@ class SystemTrayApp(QObject):
         self.menu.addAction(exit_action)
 
         self.tray_icon = QSystemTrayIcon(icon, self)
-        self.tray_icon.setToolTip("Micro Action")
+        self.tray_icon.setToolTip("KeySpark")
         self.tray_icon.setContextMenu(self.menu)
         self.tray_icon.activated.connect(self._on_activated)
         self.tray_icon.show()
@@ -62,7 +62,7 @@ class SystemTrayApp(QObject):
         else:
             icon = self._base_icon
         self.tray_icon.setIcon(icon)
-        self.tray_icon.setToolTip("Micro Action · macros on" if active else "Micro Action · macros off")
+        self.tray_icon.setToolTip("KeySpark · macros on" if active else "KeySpark · macros off")
 
     def _on_activated(self, reason):
         if reason in (

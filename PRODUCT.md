@@ -29,7 +29,7 @@ A native Windows background task minimizing to the system tray. System NumLock s
 - **Single Instance**: System-wide single-instance execution via a named mutex.
 
 ## Brand Commitments
-- **Name**: Micro Action
+- **Name**: KeySpark
 - **Identity**: Dark-mode industrial, clean mechanical keyboard theme.
 
 ## Evidence on Hand

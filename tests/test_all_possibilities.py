@@ -1,5 +1,5 @@
 """
-Comprehensive Automated Test Suite for Micro Action.
+Comprehensive Automated Test Suite for KeySpark.
 Tests every feature, subsystem, edge case, and failure mode.
 """
 import sys
@@ -170,6 +170,6 @@ class TestSingleInstanceGuard(unittest.TestCase):
 
 if __name__ == "__main__":
     print("=" * 65)
-    print("  RUNNING MICRO ACTION FULL FEATURE & EDGE-CASE TEST SUITE")
+    print("  RUNNING KEYSPARK FULL FEATURE & EDGE-CASE TEST SUITE")
     print("=" * 65)
     unittest.main()
