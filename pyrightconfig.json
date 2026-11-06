@@ -2,7 +2,14 @@
   "pythonPlatform": "Windows",
   "pythonVersion": "3.12",
   "pythonPath": "C:\\Program Files\\Python312\\python.exe",
+  "stubPath": "typings",
   "extraPaths": [
-    "C:\\Program Files\\Python312\\Lib\\site-packages"
-  ]
+    "C:\\Program Files\\Python312\\Lib\\site-packages",
+    "C:\\Program Files\\Python312\\Lib\\site-packages\\win32-stubs",
+    "C:\\Program Files\\Python312\\Lib\\site-packages\\win32"
+  ],
+  "useLibraryCodeForTypes": true,
+  "typeCheckingMode": "basic",
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none"
 }

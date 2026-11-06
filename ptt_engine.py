@@ -8,6 +8,7 @@ Feature Highlights:
    become 'committed' and are typed incrementally into the active window. Uncommitted words
    are rendered as 'tentative' in the visual overlay.
 """
+from typing import Any
 import threading
 import time
 import numpy as np
@@ -23,7 +24,7 @@ class PTTEngine:
     def __init__(self, config=None, overlay=None):
         self.config          = config
         self.overlay         = overlay
-        self.model           = None
+        self.model: Any      = None
         self._model_lock     = threading.Lock()
         self.model_loaded    = False
         self.model_loading   = False
@@ -179,29 +180,6 @@ class PTTEngine:
         else:
             if self.overlay:
                 self.overlay.hide()
-
-    def shutdown(self):
-        """Cleanly shut down the PTT engine during app exit."""
-        self._shutdown = True
-        # Stop any active recording without transcribing
-        if self._recording:
-            self._recording = False
-            self._stop_mic.set()
-            self._stop_tick.set()
-        # Cancel the model unload timer
-        with self._model_lock:
-            if self._unload_timer is not None:
-                self._unload_timer.cancel()
-                self._unload_timer = None
-        if self.overlay:
-            self.overlay.hide()
-
-    def _reset_inactivity_timer(self):
-        # Keep model warm in RAM for instant PTT response across long idle sessions
-        pass
-
-    def _unload_model(self):
-        pass
 
     # ── Mic recording loop ───────────────────────────────────────────────────
 

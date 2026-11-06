@@ -60,6 +60,13 @@ def get_hugeicon_pixmap(name: str, color: str = "#94a3b8", size: int = 16) -> QP
     except Exception:
         return QPixmap()
 
+
+def _styled_label(text: str, style: str) -> QLabel:
+    """Construct a QLabel and apply its stylesheet with Qt's supported API."""
+    label = QLabel(text)
+    label.setStyleSheet(style)
+    return label
+
 # Map of position IDs to human-readable names for the GUI
 KEY_LABELS = {
     "num7": "7 / Home",
@@ -632,7 +639,7 @@ class NumpadEditor(QWidget):
         pc_layout.addWidget(self.sel_banner)
 
         # Action Type Selector Grid
-        pc_layout.addWidget(QLabel("Action type", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;"))
+        pc_layout.addWidget(_styled_label("Action type", f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;"))
 
         type_grid = QGridLayout()
         type_grid.setSpacing(6)
@@ -692,7 +699,7 @@ class NumpadEditor(QWidget):
         """
 
         # Website Target / Browser
-        self.lbl_target = QLabel("Website address", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
+        self.lbl_target = _styled_label("Website address", f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
         form_lay.addWidget(self.lbl_target)
 
         val_h = QHBoxLayout()
@@ -726,7 +733,7 @@ class NumpadEditor(QWidget):
         form_lay.addLayout(val_h)
 
         # Open in Browser Dropdown (Website only)
-        self.lbl_browser = QLabel("Open with", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
+        self.lbl_browser = _styled_label("Open with", f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
         form_lay.addWidget(self.lbl_browser)
         
         self.browser_combo = QComboBox()
@@ -737,7 +744,7 @@ class NumpadEditor(QWidget):
         form_lay.addWidget(self.browser_combo)
 
         # Capture Scope (Screenshot / Screenrec)
-        self.lbl_capture = QLabel("Capture area", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
+        self.lbl_capture = _styled_label("Capture area", f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;")
         form_lay.addWidget(self.lbl_capture)
 
         self.capture_combo = QComboBox()
@@ -748,7 +755,7 @@ class NumpadEditor(QWidget):
         form_lay.addWidget(self.capture_combo)
 
         # Optional Description Label
-        form_lay.addWidget(QLabel("Description (optional)", styleSheet=f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;"))
+        form_lay.addWidget(_styled_label("Description (optional)", f"font-size: 11px; font-weight: 600; color: {TEXT_MUTED}; font-family: 'Segoe UI', sans-serif;"))
         self.desc_input = QLineEdit()
         self.desc_input.setMinimumHeight(34)
         self.desc_input.setPlaceholderText("e.g. Open Dev Terminal")
@@ -846,7 +853,7 @@ class NumpadEditor(QWidget):
         pg_layout.setContentsMargins(0, 0, 0, 0)
         pg_layout.setSpacing(14)
 
-        pg_layout.addWidget(QLabel("System preferences", styleSheet=f"font-size: 16px; font-weight: 600; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;"))
+        pg_layout.addWidget(_styled_label("System preferences", f"font-size: 16px; font-weight: 600; color: {TEXT_MAIN}; font-family: 'Segoe UI', sans-serif;"))
 
         self.cb_autostart = QCheckBox("Start Micro Action automatically on Windows boot")
         self.cb_autostart.setChecked(True)
@@ -888,13 +895,13 @@ class NumpadEditor(QWidget):
         self.sb_device.setStyleSheet(f"color: {ACCENT_GREEN}; font-size: 11px; font-weight: 600; font-family: 'Segoe UI', sans-serif;")
         sb_h.addWidget(self.sb_device)
 
-        sb_h.addWidget(QLabel("|", styleSheet=f"color: {BORDER_COLOR};"))
+        sb_h.addWidget(_styled_label("|", f"color: {BORDER_COLOR};"))
 
         self.sb_config_count = QLabel("0 of 11 keys assigned")
         self.sb_config_count.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-family: 'Segoe UI', sans-serif;")
         sb_h.addWidget(self.sb_config_count)
 
-        sb_h.addWidget(QLabel("|", styleSheet=f"color: {BORDER_COLOR};"))
+        sb_h.addWidget(_styled_label("|", f"color: {BORDER_COLOR};"))
 
         self.sb_profile = QLabel("Profile · Default")
         self.sb_profile.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 11px; font-family: 'Segoe UI', sans-serif;")

@@ -234,7 +234,7 @@ class ScreenEngine:
             os.makedirs(save_dir, exist_ok=True)
             output_path = os.path.join(save_dir, f"recording_{timestamp}.mp4")
 
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore[attr-defined]
             writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
             if not writer.isOpened():
@@ -259,7 +259,7 @@ class ScreenEngine:
                     time.sleep(sleep)
 
             writer.release()
-            duration = time.time() - self._rec_start_time
+            duration = time.time() - (self._rec_start_time or time.time())
             print(f"[ScreenRec] Saved {frame_count} frames ({duration:.1f}s)")
 
             self._toast(f"✅ Recording saved! ({int(duration)}s)", 3.0)

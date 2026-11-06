@@ -1,11 +1,18 @@
-# 🎛️ Micro Action — Physical Numpad Macro Engine
+**Micro Action** — turn any $5 USB numpad into a silent macro pad for Windows. Assign hotkeys, URLs, apps, scripts, or offline Whisper voice dictation to each key. No scripting, no extra hardware.
+
+<!-- Replace the line below with your actual demo GIF once recorded (5-10 seconds: tray launch → NumLock OFF → key press → action fires) -->
+![Micro Action demo](assets/demo.gif)
+
+```powershell
+# One-command launch — no Python required (PowerShell)
+irm https://github.com/Abhiyaan2003/Micro-Action/releases/latest/download/MicroAction-v2.0.0-windows-x64.zip -OutFile MicroAction.zip; Expand-Archive MicroAction.zip -DestinationPath MicroAction; .\MicroAction\MicroAction.exe
+```
 
 <p align="center">
-  <img src="assets/icon.png" alt="Micro Action Logo" width="128" height="128" />
-</p>
-
-<p align="center">
-  <b>Turn any standard $5 physical Numpad into an offline Stream Deck macro controller with zero extra hardware!</b>
+  <a href="https://github.com/Abhiyaan2003/Micro-Action/releases/latest"><img src="https://img.shields.io/github/v/release/Abhiyaan2003/Micro-Action?style=for-the-badge&label=Download&color=0078D6" alt="Latest Release" /></a>
+  <a href="https://youtu.be/YOUR_VIDEO_ID"><img src="https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge" alt="Watch Demo" /></a>
+  <a href="https://github.com/Abhiyaan2003/Micro-Action/actions/workflows/ci.yml"><img src="https://github.com/Abhiyaan2003/Micro-Action/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" /></a>
 </p>
 
 <p align="center">
@@ -14,15 +21,6 @@
   <img src="https://img.shields.io/badge/Whisper-Speech--to--Text-000000?style=for-the-badge&logo=openai&logoColor=white" alt="Whisper AI" />
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
 </p>
-
-> [!IMPORTANT]
-> ### ⚡ Instant Download (No Installation / No Python Required!)
-> Download the pre-compiled, standalone Windows application directly from [**GitHub Releases**](https://github.com/Abhiyaan2003/Micro-Action/releases):
-> 
-> 📦 **[Download Latest Executable Release (v1.0.0)](https://github.com/Abhiyaan2003/Micro-Action/releases)**
-> 1. Download `MicroAction-v1.0.0-windows-x64.zip`.
-> 2. Extract the folder anywhere on your computer.
-> 3. Double click **`MicroAction.exe`** to start using immediately!
 
 ---
 
@@ -161,7 +159,7 @@ Micro-Action/
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for details.
+Distributed under the [MIT License](LICENSE).
 
 ---
 

@@ -1,13 +1,13 @@
 """Pill-shaped action-type selectors."""
 from __future__ import annotations
 
-from PyQt6.QtCore import QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPen
+from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PyQt6.QtWidgets import QPushButton
 
 from ui.glass import paint_glass_surface
 from ui.icons import icon_pixmap
-from ui.theme import DARK, ThemeTokens
+from ui.theme import DARK, ThemeTokens, token_color
 
 
 class ActionChip(QPushButton):
@@ -20,10 +20,24 @@ class ActionChip(QPushButton):
         self._hover = False
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(36)
+        self.setFixedHeight(30)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setStyleSheet("background: transparent; border: none;")
         self.setAccessibleName(f"{label} action type")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.clicked.connect(lambda: self.chosen.emit(self.action_type))
+
+    def sizeHint(self) -> QSize:
+        font = self.font()
+        font.setPointSize(9)
+        fm = QFontMetrics(font)
+        text_w = fm.horizontalAdvance(self.text())
+        # Left dot: 11px margin + 6px diameter + 6px gap = 23px. Right padding: 14px.
+        width = text_w + 40
+        return QSize(max(width, 74), 30)
+
+    def minimumSizeHint(self) -> QSize:
+        return self.sizeHint()
 
     def set_theme(self, theme: ThemeTokens):
         self.theme = theme
@@ -34,41 +48,54 @@ class ActionChip(QPushButton):
         self.update()
         super().enterEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, a0):
         self._hover = False
         self.update()
-        super().leaveEvent(event)
+        super().leaveEvent(a0)
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
-        if self.isChecked() or self._hover:
-            strength = 1.0 if self.isChecked() else 0.45
-            accent = self.theme.actions.get(self.action_type) if self.isChecked() else None
-            paint_glass_surface(painter, rect, self.theme, rect.height() / 2, accent, strength)
-
-        icon_color = self.theme.actions.get(self.action_type, self.theme.text_dim) if self.isChecked() else self.theme.text_dim
-        glyph = icon_pixmap(self.action_type, icon_color, 16)
-        x = rect.left() + 11
-        y = rect.center().y() - 8
-        if not glyph.isNull():
-            painter.drawPixmap(int(x), int(y), glyph)
-
-        painter.setPen(QColor(self.theme.text if self.isChecked() else self.theme.text_dim))
-        font = painter.font()
-        font.setPointSize(9)
-        font.setWeight(QFont.Weight.DemiBold if self.isChecked() else QFont.Weight.Normal)
-        painter.setFont(font)
-        painter.drawText(QRectF(x + 22, rect.top(), rect.width() - 38, rect.height()), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.text())
+        r = rect.height() / 2.0
 
         if self.isChecked():
-            dot_color = self.theme.actions.get(self.action_type, self.theme.on)
+            painter.setPen(QPen(QColor(168, 85, 247, 110), 1.2))
+            painter.setBrush(QColor(168, 85, 247, 24))
+            painter.drawRoundedRect(rect, r, r)
+
+            # Purple glowing dot
+            dot_color = QColor("#A855F7")
+            dot_r = 3.0
+            dot_x = rect.left() + 11.0
+            dot_y = rect.center().y()
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(dot_color))
-            painter.drawEllipse(QRectF(rect.right() - 15, rect.center().y() - 3, 6, 6))
+            painter.setBrush(dot_color)
+            painter.drawEllipse(QRectF(dot_x - dot_r, dot_y - dot_r, dot_r * 2, dot_r * 2))
+
+            painter.setPen(QColor("#FFFFFF"))
+            font = painter.font()
+            font.setPointSize(9)
+            font.setWeight(QFont.Weight.Medium)
+            painter.setFont(font)
+            text_rect = QRectF(dot_x + dot_r + 6, rect.top(), rect.width() - (dot_x + dot_r + 6) - 12, rect.height())
+            painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.text())
+        else:
+            if self._hover:
+                painter.setPen(QPen(QColor(255, 255, 255, 25), 1))
+                painter.setBrush(QColor(255, 255, 255, 12))
+                painter.drawRoundedRect(rect, r, r)
+
+            painter.setPen(QColor(255, 255, 255, 220 if self._hover else 150))
+            font = painter.font()
+            font.setPointSize(9)
+            font.setWeight(QFont.Weight.Normal)
+            painter.setFont(font)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.text())
+
         if self.hasFocus():
-            painter.setPen(QPen(QColor(self.theme.actions.get(self.action_type, self.theme.off)), 2))
+            painter.setPen(QPen(QColor("#A855F7"), 1.5))
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), rect.height() / 2, rect.height() / 2)
+            painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), r, r)
+
         painter.end()

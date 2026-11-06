@@ -42,6 +42,23 @@ class ActionEngine:
             elif t == "screenrec":
                 if self.screen_engine:
                     self.screen_engine.toggle_recording(v)
+            elif t == "volume":
+                import pyautogui
+                vl = str(v).lower()
+                if "down" in vl or "-" in vl:
+                    pyautogui.press("volumedown")
+                elif "mute" in vl:
+                    pyautogui.press("volumemute")
+                else:
+                    pyautogui.press("volumeup")
+            elif t == "brightness":
+                try:
+                    import subprocess
+                    step = -10 if ("down" in str(v).lower() or "-" in str(v)) else 10
+                    cmd = f"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1, [Math]::Min(100, [Math]::Max(0, ((Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness + {step}))))"
+                    subprocess.Popen(["powershell", "-NoProfile", "-Command", cmd], creationflags=0x08000000)
+                except Exception as e:
+                    print(f"[Actions] Brightness error: {e}")
             else:
                 print(f"[Actions] Unknown action type: '{t}'")
         except Exception as e:

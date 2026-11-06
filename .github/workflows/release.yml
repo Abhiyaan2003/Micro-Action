@@ -5,51 +5,153 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_override:
+        description: 'Version tag (e.g. v2.0.0) — used only for manual runs'
+        required: false
+        default: ''
 
 permissions:
   contents: write
 
 jobs:
   build-windows:
+    name: Build Windows Executable
     runs-on: windows-latest
 
     steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history needed for changelog generation
 
-      - name: Set up Python
+      # ── 2. Python environment ────────────────────────────────────────────────
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
+      # ── 3. Dependencies ──────────────────────────────────────────────────────
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
+      # ── 4. Build ─────────────────────────────────────────────────────────────
       - name: Build Executable with PyInstaller
-        run: |
-          pyinstaller MicroAction.spec --noconfirm
+        run: pyinstaller MicroAction.spec --noconfirm
 
-      - name: Package Release ZIP & Checksum
+      # ── 5. Verify build output ───────────────────────────────────────────────
+      - name: Verify Build Output
         shell: pwsh
         run: |
-          $tag = if ($env:GITHUB_REF -like "refs/tags/*") { $env:GITHUB_REF_NAME } else { "v1.0.0" }
+          $exe = "dist/MicroAction/MicroAction.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "Build failed: $exe not found."
+            exit 1
+          }
+          $size = [math]::Round((Get-Item $exe).Length / 1MB, 1)
+          Write-Output "MicroAction.exe built successfully ($size MB)"
+
+      # ── 6. Resolve version tag ────────────────────────────────────────────────
+      - name: Resolve Release Tag
+        id: tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF_NAME
+          } elseif ("${{ github.event.inputs.tag_override }}" -ne "") {
+            $tag = "${{ github.event.inputs.tag_override }}"
+          } else {
+            $tag = "v0.0.0-dev"
+          }
+          Write-Output "Resolved tag: $tag"
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      # ── 7. Package ZIP + SHA-256 checksum ────────────────────────────────────
+      - name: Package Release ZIP & Checksum
+        id: package
+        shell: pwsh
+        run: |
+          $tag     = "${{ steps.tag.outputs.tag }}"
           $zipName = "MicroAction-$tag-windows-x64.zip"
-          Compress-Archive -Path "dist/MicroAction/*" -DestinationPath $zipName -CompressionLevel Optimal
+          $packageRoot = (Resolve-Path "dist/MicroAction").Path
+          $packagePaths = @(
+            (Join-Path $packageRoot "MicroAction.exe"),
+            (Join-Path $packageRoot "_internal")
+          )
+          foreach ($path in $packagePaths) {
+            if (-not (Test-Path -LiteralPath $path)) { throw "Missing package input: $path" }
+          }
+
+          Compress-Archive `
+            -Path            $packagePaths `
+            -DestinationPath $zipName `
+            -CompressionLevel Optimal `
+            -Force
+
+          $archive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path (Get-Location) $zipName))
+          try {
+            if (-not ($archive.Entries.FullName -contains "MicroAction.exe")) {
+              throw "Release ZIP does not contain MicroAction.exe"
+            }
+          } finally { $archive.Dispose() }
+
           $hash = (Get-FileHash -Path $zipName -Algorithm SHA256).Hash
           Set-Content -Path "$zipName.sha256" -Value "$hash  $zipName"
-          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
 
+          $sizeMB = [math]::Round((Get-Item $zipName).Length / 1MB, 1)
+          Write-Output "Packaged: $zipName ($sizeMB MB)"
+          Write-Output "SHA-256:  $hash"
+
+          "zip_name=$zipName"  >> $env:GITHUB_OUTPUT
+          "zip_sha256=$hash"   >> $env:GITHUB_OUTPUT
+
+      # ── 8. Generate changelog from git log ───────────────────────────────────
+      - name: Generate Changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.tag.outputs.tag }}"
+
+          # Find the previous tag; fall back to the very first commit
+          $prevTag = git describe --tags --abbrev=0 "$tag^" 2>$null
+          if (-not $prevTag) { $prevTag = (git rev-list --max-parents=0 HEAD) }
+
+          $log = git log "$prevTag..HEAD" --pretty=format:"- %s (%h)" --no-merges
+          if (-not $log) { $log = "- Initial release" }
+
+          $zipName = "${{ steps.package.outputs.zip_name }}"
+          $sha     = "${{ steps.package.outputs.zip_sha256 }}"
+
+          $body = @"
+          ## What's Changed
+          $log
+
+          ## Downloads
+          | File | SHA-256 |
+          |------|---------|
+          | ``$zipName`` | ``$sha`` |
+
+          > **No Python required.** Extract the ZIP and run ``MicroAction.exe`` directly.
+          "@
+
+          Set-Content -Path "release_notes.md" -Value $body
+
+      # ── 9. Create GitHub Release ──────────────────────────────────────────────
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "MicroAction ${{ steps.tag.outputs.tag }}"
+          body_path: release_notes.md
           files: |
-            ${{ env.ZIP_NAME }}
-            ${{ env.ZIP_NAME }}.sha256
+            ${{ steps.package.outputs.zip_name }}
+            ${{ steps.package.outputs.zip_name }}.sha256
           draft: false
-          prerelease: false
-          generate_release_notes: true
+          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
+          generate_release_notes: false

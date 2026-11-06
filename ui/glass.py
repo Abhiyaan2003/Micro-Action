@@ -1,15 +1,15 @@
 """Small cached QPainter surface primitives for the glass controls."""
 from __future__ import annotations
 
-from PyQt6.QtCore import QPointF, QRectF, Qt
-from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPixmap
+from PyQt6.QtCore import QLineF, QPointF, QRectF, Qt
+from PyQt6.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPainterPath, QPixmap, QPen
 from PyQt6.QtWidgets import QWidget
 
-from ui.theme import DARK, ThemeTokens
+from ui.theme import DARK, ThemeTokens, token_color
 
 
 def _with_alpha(value: str, factor: float) -> QColor:
-    color = QColor(value)
+    color = token_color(value)
     color.setAlphaF(max(0.0, min(1.0, color.alphaF() * factor)))
     return color
 
@@ -29,8 +29,8 @@ def paint_glass_surface(
     painter.setClipPath(path)
 
     fill = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-    base = QColor(theme.glass)
-    hover = QColor(theme.glass_hover)
+    base = token_color(theme.glass)
+    hover = token_color(theme.glass_hover)
     current = QColor.fromRgbF(
         base.redF() * (1 - strength) + hover.redF() * strength,
         base.greenF() * (1 - strength) + hover.greenF() * strength,
@@ -49,21 +49,24 @@ def paint_glass_surface(
     painter.fillPath(path, sheen)
 
     rim = QLinearGradient(rect.topLeft(), rect.bottomRight())
-    rim.setColorAt(0.0, QColor(theme.rim))
+    rim.setColorAt(0.0, token_color(theme.rim))
     rim.setColorAt(0.48, _with_alpha(theme.rim, 0.35))
     rim.setColorAt(1.0, _with_alpha(theme.rim, 0.16))
     if accent:
         rim.setColorAt(0.0, _with_alpha(accent, 0.55))
         rim.setColorAt(0.48, _with_alpha(theme.rim, 0.30))
     painter.setBrush(Qt.BrushStyle.NoBrush)
-    painter.setPen(rim)
+    painter.setPen(QPen(QBrush(rim), 1.0))
     painter.drawPath(path)
 
     top_line = QLinearGradient(rect.topLeft(), rect.topRight())
     top_line.setColorAt(0, _with_alpha(theme.rim, 0.75))
     top_line.setColorAt(1, _with_alpha(theme.rim, 0.12))
-    painter.setPen(top_line)
-    painter.drawLine(rect.left() + radius, rect.top() + 1, rect.right() - radius, rect.top() + 1)
+    painter.setPen(QPen(QBrush(top_line), 1.0))
+    painter.drawLine(QLineF(
+        QPointF(rect.left() + radius, rect.top() + 1),
+        QPointF(rect.right() - radius, rect.top() + 1),
+    ))
     painter.restore()
 
 
@@ -92,11 +95,11 @@ class GlassWidget(QWidget):
         self._glass_cache = QPixmap()
         self.update()
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, a0):
         self._glass_cache = QPixmap()
-        super().resizeEvent(event)
+        super().resizeEvent(a0)
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         dpr = self.devicePixelRatioF()
         cache_size = (int(self.width() * dpr), int(self.height() * dpr))
         if self._glass_cache.isNull() or (self._glass_cache.width(), self._glass_cache.height()) != cache_size:

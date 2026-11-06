@@ -3,14 +3,32 @@ import os
 import ctypes
 import ctypes.wintypes
 
+# In PyInstaller frozen bundle, ensure DLL search directory is correctly registered
+# before any PyQt6 or C-extension imports.
+if hasattr(sys, "_MEIPASS"):
+    base_dir = getattr(sys, "_MEIPASS", "")
+    qt_bin = os.path.join(base_dir, "PyQt6", "Qt6", "bin")
+    if os.path.isdir(qt_bin):
+        try:
+            os.add_dll_directory(qt_bin)
+        except Exception:
+            pass
+        os.environ["PATH"] = qt_bin + os.pathsep + os.environ.get("PATH", "")
+    try:
+        os.add_dll_directory(base_dir)
+    except Exception:
+        pass
+    os.environ["PATH"] = base_dir + os.pathsep + os.environ.get("PATH", "")
+
 # Suppress Qt DPI awareness error on non-admin processes.
 # Must be set before any Qt import.
 os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "0")
 os.environ.setdefault("QT_SCALE_FACTOR", "1")
 
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import pyqtSignal, QTimer, Qt
-from PyQt6.QtGui import QIcon
+from PyQt6 import sip
+from PyQt6.QtCore import pyqtSignal, QTimer, Qt, QByteArray
+from PyQt6.QtGui import QIcon, QCloseEvent
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 from config import Config, get_resource_path
@@ -36,6 +54,7 @@ class LegacyMainWindow(NumpadEditor):
     """
     show_signal = pyqtSignal()
     exit_signal = pyqtSignal()
+    tray: SystemTrayApp | None
 
     def __init__(self, config, hook, ptt=None, overlay=None,
                  screen_engine=None, ipc_server=None):
@@ -45,6 +64,7 @@ class LegacyMainWindow(NumpadEditor):
         self.overlay      = overlay
         self.screen_engine = screen_engine
         self.ipc_server   = ipc_server
+        self.tray = None
 
         if self.ipc_server:
             self.ipc_server.newConnection.connect(self._handle_ipc_connection)
@@ -66,7 +86,11 @@ class LegacyMainWindow(NumpadEditor):
                 print("[App] Watchdog: Hook inactive, reinstalling...")
                 self.hook.install()
 
-    def nativeEvent(self, eventType, message) -> tuple[bool, int]:
+    def nativeEvent(
+        self,
+        eventType: QByteArray | bytes | bytearray | memoryview,
+        message: sip.voidptr,
+    ) -> tuple[bool, sip.voidptr]:
         """Listen for Windows Session Unlock (0x02B1) and Power Resume (0x0218)."""
         if eventType == b"windows_generic_MSG" and message:
             try:
@@ -79,7 +103,7 @@ class LegacyMainWindow(NumpadEditor):
                             self.hook.refresh_hook()
             except Exception:
                 pass
-        return False, 0
+        return False, sip.voidptr(0)
 
     # ── IPC: show-window only ─────────────────────────────────────────────────
 
@@ -127,7 +151,7 @@ class LegacyMainWindow(NumpadEditor):
         self.activateWindow()
         self.raise_()
 
-    def closeEvent(self, a0):
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
         """Intercept close to hide (tray mode) instead of quitting."""
         if a0:
             a0.ignore()
@@ -159,6 +183,7 @@ class MainWindow(GlassNumpadEditor):
     show_signal = pyqtSignal()
     exit_signal = pyqtSignal()
     numlock_signal = pyqtSignal(bool)
+    tray: SystemTrayApp | None
 
     def __init__(self, config, hook, ptt=None, overlay=None, screen_engine=None, ipc_server=None):
         super().__init__(config, ptt, overlay)
@@ -167,6 +192,7 @@ class MainWindow(GlassNumpadEditor):
         self.overlay = overlay
         self.screen_engine = screen_engine
         self.ipc_server = ipc_server
+        self.tray = None
         if ipc_server:
             ipc_server.newConnection.connect(self._handle_ipc_connection)
         self.show_signal.connect(self.show_and_raise)
@@ -193,7 +219,7 @@ class MainWindow(GlassNumpadEditor):
                 winsound.MessageBeep(winsound.MB_OK)
             except (ImportError, RuntimeError):
                 pass
-        tray = getattr(self, "tray", None)
+        tray = self.tray
         if tray:
             tray.set_macros_active(macros_active)
 
@@ -201,7 +227,11 @@ class MainWindow(GlassNumpadEditor):
         if self.hook and not self.hook.is_active:
             self.hook.install()
 
-    def nativeEvent(self, eventType, message):
+    def nativeEvent(
+        self,
+        eventType: QByteArray | bytes | bytearray | memoryview,
+        message: sip.voidptr,
+    ) -> tuple[bool, sip.voidptr]:
         if eventType == b"windows_generic_MSG" and message:
             try:
                 msg = ctypes.wintypes.MSG.from_address(int(message))
@@ -209,7 +239,7 @@ class MainWindow(GlassNumpadEditor):
                     self.hook.refresh_hook()
             except Exception:
                 pass
-        return False, 0
+        return False, sip.voidptr(0)
 
     def _handle_ipc_connection(self):
         if not self.ipc_server:
@@ -233,8 +263,9 @@ class MainWindow(GlassNumpadEditor):
         self.activateWindow()
         self.raise_()
 
-    def closeEvent(self, event):
-        event.ignore()
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
+        if a0 is not None:
+            a0.ignore()
         self.hide()
 
     def app_exit(self):
@@ -351,7 +382,8 @@ def main():
 
     from ptt_engine  import PTTEngine
     from ui.overlays import OverlayPill
-    overlay    = OverlayPill(config.get_setting("appearance", "system"))
+    app_appearance = str(config.get_setting("appearance", "system") or "system")
+    overlay    = OverlayPill(app_appearance)
     ptt_engine = PTTEngine(config=config, overlay=overlay)
 
     action_engine = ActionEngine()
@@ -367,10 +399,12 @@ def main():
     hook = KeyboardHook(config, action_engine, ptt_engine)
 
     # ── 7. Main window + tray ─────────────────────────────────────────────────
-    window_class = LegacyMainWindow if config.get_setting("theme", "glass") == "neo" else MainWindow
-    main_window = window_class(config, hook, ptt_engine, overlay, screen_engine, ipc_server=ipc_server)
-    hook.gui_notifier = main_window.trigger_physical_key_press
-    if hasattr(main_window, "numlock_signal"):
+    if config.get_setting("theme", "glass") == "neo":
+        main_window = LegacyMainWindow(config, hook, ptt_engine, overlay, screen_engine, ipc_server=ipc_server)
+        hook.gui_notifier = main_window.trigger_physical_key_press
+    else:
+        main_window = MainWindow(config, hook, ptt_engine, overlay, screen_engine, ipc_server=ipc_server)
+        hook.gui_notifier = main_window.trigger_physical_key_press
         hook.numlock_notifier = main_window.numlock_signal.emit
         main_window.set_numlock_state(not bool(ctypes.windll.user32.GetKeyState(0x90) & 1), animate=False)
 
@@ -386,7 +420,7 @@ def main():
     tray.start()
     main_window.tray = tray
     if hasattr(main_window, "_macros_active"):
-        tray.set_macros_active(main_window._macros_active)
+        tray.set_macros_active(getattr(main_window, "_macros_active", False))
 
     main_window.show()
 

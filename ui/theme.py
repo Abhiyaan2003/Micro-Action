@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
-from PyQt6.QtGui import QFontDatabase
+from PyQt6.QtGui import QColor, QFontDatabase
 
 
 @dataclass(frozen=True)
@@ -27,16 +28,16 @@ class ThemeTokens:
 
 
 DARK = ThemeTokens(
-    name="dark", bg="#0E1015", bg_glow="rgba(90,110,255,0.10)",
-    glass="rgba(255,255,255,0.06)", glass_hover="rgba(255,255,255,0.10)",
-    sheen="rgba(255,255,255,0.08)", rim="rgba(255,255,255,0.14)",
-    text="rgba(255,255,255,0.92)", text_dim="rgba(255,255,255,0.50)",
-    inset="rgba(0,0,0,0.25)", shadow="rgba(0,0,0,0.25)",
-    pill="rgba(26,29,39,0.60)", on="#4ADE9A", off="#8B91A3", danger="#FF5555",
+    name="dark", bg="#0B0C10", bg_glow="rgba(168,85,247,0.03)",
+    glass="rgba(255,255,255,0.04)", glass_hover="rgba(255,255,255,0.07)",
+    sheen="rgba(255,255,255,0.05)", rim="rgba(255,255,255,0.08)",
+    text="#FFFFFF", text_dim="rgba(255,255,255,0.50)",
+    inset="#0E1017", shadow="rgba(0,0,0,0.30)",
+    pill="rgba(255,255,255,0.05)", on="#10B981", off="#6B7280", danger="#FF5555",
     actions={
-        "website": "#5AA9FF", "hotkey": "#B58CFF", "launch": "#4ADE9A",
-        "script": "#FFB84D", "ptt": "#FF6B88", "screenshot": "#4FD8E8",
-        "screenrec": "#FF5555", "volume": "#C9D1E0", "brightness": "#C9D1E0",
+        "website": "#FFFFFF", "hotkey": "#C084FC", "launch": "#FFFFFF",
+        "script": "#FFFFFF", "ptt": "#FF5C7A", "screenshot": "#FFFFFF",
+        "screenrec": "#FFFFFF", "volume": "#FFFFFF", "brightness": "#FFFFFF",
     },
 )
 
@@ -76,6 +77,29 @@ def theme_for(appearance: str = "system") -> ThemeTokens:
     if appearance == "dark":
         return DARK
     return LIGHT if windows_uses_light_theme() else DARK
+
+
+_RGBA_TOKEN = re.compile(r"^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$", re.I)
+
+
+def token_color(value: str) -> QColor:
+    """Parse design tokens, including CSS fractional alpha, as a QColor."""
+    match = _RGBA_TOKEN.match(value)
+    if match:
+        red, green, blue = (int(match.group(index)) for index in (1, 2, 3))
+        alpha_value = float(match.group(4))
+        alpha = round(alpha_value * 255) if alpha_value <= 1 else round(alpha_value)
+        return QColor(red, green, blue, max(0, min(255, alpha)))
+    return QColor(value)
+
+
+def stylesheet_tokens(value: str) -> str:
+    """Convert fractional token alpha to Qt stylesheet's integer alpha."""
+    def convert(match: re.Match[str]) -> str:
+        alpha_value = float(match.group(4))
+        alpha = round(alpha_value * 255) if alpha_value <= 1 else round(alpha_value)
+        return f"rgba({match.group(1)},{match.group(2)},{match.group(3)},{max(0, min(255, alpha))})"
+    return re.sub(r"rgba\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\)", convert, value, flags=re.I)
 
 
 def interface_font_family() -> str:

@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRectF, Qt, pyqtProperty, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPixmap
-from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QPushButton
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import pyqtProperty  # type: ignore[attr-defined]
+from PyQt6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
+from PyQt6.QtWidgets import QPushButton
 
 from ui.glass import paint_glass_surface
 from ui.icons import icon_pixmap
-from ui.theme import DARK, ThemeTokens, mono_font_family
+from ui.theme import DARK, ThemeTokens, mono_font_family, token_color
 
 
 ACTION_LABELS = {
@@ -17,6 +18,81 @@ ACTION_LABELS = {
     "script": "Script", "ptt": "Speech to text", "screenshot": "Screenshot",
     "screenrec": "Screen recording",
 }
+
+KNOWN_WEBSITES = {
+    "mail.google.com": "Gmail",
+    "gemini.google.com": "Gemini",
+    "docs.google.com": "Google Docs",
+    "drive.google.com": "Google Drive",
+    "calendar.google.com": "Google Calendar",
+    "maps.google.com": "Google Maps",
+    "console.cloud.google.com": "Google Cloud",
+    "music.youtube.com": "YouTube Music",
+    "youtube.com": "YouTube",
+    "youtu.be": "YouTube",
+    "chatgpt.com": "ChatGPT",
+    "chat.openai.com": "ChatGPT",
+    "claude.ai": "Claude",
+    "instagram.com": "Instagram",
+    "github.com": "GitHub",
+    "gitlab.com": "GitLab",
+    "reddit.com": "Reddit",
+    "twitter.com": "Twitter",
+    "x.com": "X",
+    "spotify.com": "Spotify",
+    "discord.com": "Discord",
+    "discord.gg": "Discord",
+    "twitch.tv": "Twitch",
+    "netflix.com": "Netflix",
+    "linkedin.com": "LinkedIn",
+    "facebook.com": "Facebook",
+    "amazon.com": "Amazon",
+    "whatsapp.com": "WhatsApp",
+    "telegram.org": "Telegram",
+    "t.me": "Telegram",
+    "figma.com": "Figma",
+    "notion.so": "Notion",
+    "slack.com": "Slack",
+    "stackoverflow.com": "Stack Overflow",
+    "news.ycombinator.com": "Hacker News",
+    "wikipedia.org": "Wikipedia",
+    "portal.azure.com": "Azure",
+    "console.aws.amazon.com": "AWS",
+    "supabase.com": "Supabase",
+}
+
+
+def extract_website_name(val: str) -> str:
+    """Extract a human-friendly website name from a URL or browser|URL string."""
+    if "|" in val:
+        _, val = val.split("|", 1)
+    val = val.strip()
+    if not val:
+        return "Website"
+    if not val.startswith(("http://", "https://")):
+        val = "https://" + val
+    try:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(val)
+        host = (parsed.netloc or "").lower()
+        if host.startswith("www."):
+            host = host[4:]
+        if host in KNOWN_WEBSITES:
+            return KNOWN_WEBSITES[host]
+        for k, name in KNOWN_WEBSITES.items():
+            if host.endswith("." + k):
+                return name
+        host = host.split(":")[0]
+        parts = host.split(".")
+        if len(parts) >= 2:
+            if len(parts) >= 3 and parts[-2] in ("co", "com", "org", "net", "edu", "gov"):
+                name_part = parts[-3]
+            else:
+                name_part = parts[-2]
+            return name_part.replace("-", " ").replace("_", " ").title()
+        return host.title() or "Website"
+    except Exception:
+        return "Website"
 
 
 class KeyTile(QPushButton):
@@ -43,14 +119,8 @@ class KeyTile(QPushButton):
         self._release_animation = self._animation(b"pressProgress", 1.0, 0.0, 200, QEasingCurve.Type.OutBack)
         self._pulse_animation = self._animation(b"activeGlow", 0.15, 1.0, 700, QEasingCurve.Type.InOutSine)
         self._pulse_animation.setLoopCount(-1)
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setColor(QColor(0, 0, 0, 0))
-        shadow.setBlurRadius(0)
-        shadow.setOffset(0, 8)
-        self.setGraphicsEffect(shadow)
-        self._shadow = shadow
 
-        self.setFixedSize(196 if wide else 92, 92)
+        self.setFixedSize(176 if wide else 84, 84)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.clicked.connect(lambda: self.selected.emit(self.pos_id))
@@ -72,7 +142,7 @@ class KeyTile(QPushButton):
 
     def set_hover_progress(self, value):
         self._hover_progress = float(value)
-        self._refresh_surface()
+        self.update()
 
     hoverProgress = pyqtProperty(float, get_hover_progress, set_hover_progress)
 
@@ -98,7 +168,13 @@ class KeyTile(QPushButton):
         self.action = action
         if action:
             action_type = action.get("type", "")
-            self.label = (action.get("desc") or ACTION_LABELS.get(action_type, "Action")).strip()
+            desc = (action.get("desc") or "").strip()
+            if not desc or desc.lower() == "website":
+                if action_type == "website":
+                    desc = extract_website_name(action.get("value", ""))
+                else:
+                    desc = ACTION_LABELS.get(action_type, "Action")
+            self.label = desc
             self.value = self._value_summary(action_type, action.get("value", ""), bool(action.get("desc")))
             name = f"Key {self.number}, {self.label}"
             if self.value:
@@ -110,7 +186,7 @@ class KeyTile(QPushButton):
             self.value = ""
             self.setAccessibleName(f"Key {self.number}, Empty")
             self.setToolTip(f"Key {self.number} · {self.secondary}\nEmpty")
-        self._refresh_surface()
+        self.update()
 
     @staticmethod
     def _value_summary(action_type: str, value: str, has_name: bool) -> str:
@@ -132,8 +208,7 @@ class KeyTile(QPushButton):
         if self._selected == selected:
             return
         self._selected = selected
-        self._refresh_surface()
-        self._update_shadow()
+        self.update()
 
     def set_macro_active(self, active: bool):
         self._macro_active = active
@@ -152,16 +227,14 @@ class KeyTile(QPushButton):
         self._hover_animation.setStartValue(self._hover_progress)
         self._hover_animation.setEndValue(1.0)
         self._hover_animation.start()
-        self._update_shadow()
         super().enterEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, a0):
         self._hover_animation.stop()
         self._hover_animation.setStartValue(self._hover_progress)
         self._hover_animation.setEndValue(0.0)
         self._hover_animation.start()
-        self._update_shadow()
-        super().leaveEvent(event)
+        super().leaveEvent(a0)
 
     def _pressed(self):
         self._release_animation.stop()
@@ -172,111 +245,132 @@ class KeyTile(QPushButton):
         self._release_animation.setStartValue(self._press_progress)
         self._release_animation.start()
 
-    def _refresh_surface(self):
-        self._glass_cache = QPixmap()
-        self.update()
-        self._update_shadow()
-
-    def _update_shadow(self):
-        active = self._selected or self._hover_progress > 0.05
-        if active:
-            action_type = self.action.get("type", "") if self.action else ""
-            color = QColor(self.theme.actions.get(action_type, "#000000"))
-            color.setAlpha(55)
-            self._shadow.setColor(color)
-            self._shadow.setBlurRadius(24)
-        else:
-            self._shadow.setBlurRadius(0)
-            self._shadow.setColor(QColor(0, 0, 0, 0))
-
     def set_theme(self, theme: ThemeTokens):
         self.theme = theme
-        self._refresh_surface()
+        self.update()
 
-    def resizeEvent(self, event):
-        self._glass_cache = QPixmap()
-        super().resizeEvent(event)
+    def _get_icon_name(self) -> str:
+        if not self.action:
+            return "add"
+        t = self.action.get("type", "")
+        desc = (self.action.get("desc") or "").lower()
+        val = str(self.action.get("value", "")).lower()
+        full_text = f"{desc} {val}"
+        if "github" in full_text:
+            return "github"
+        if "youtube" in full_text or "youtu.be" in full_text:
+            return "youtube"
+        if "chatgpt" in full_text or "openai" in full_text:
+            return "chatgpt"
+        if "google" in full_text or "gemini" in full_text:
+            return "google"
+        if "discord" in full_text:
+            return "discord"
+        if "reddit" in full_text:
+            return "reddit"
+        if "spotify" in full_text:
+            return "spotify"
+        if "twitter" in full_text or "x.com" in full_text:
+            return "twitter"
+        if "twitch" in full_text:
+            return "twitch"
+        if "vscode" in full_text or "vs code" in full_text or "code" in desc:
+            return "vscode"
+        if "deploy" in full_text or "terminal" in full_text:
+            return "deploy"
+        if "dictate" in full_text or t == "ptt":
+            return "ptt"
+        if "capture" in full_text or t == "screenshot":
+            return "screenshot"
+        if "record" in full_text or t == "screenrec":
+            return "screenrec"
+        if "volume down" in full_text or (t == "volume" and ("down" in val or "down" in desc or "-" in val)):
+            return "volume-down"
+        if "volume up" in full_text or t == "volume":
+            return "volume-up"
+        if "brightness" in full_text or t == "brightness":
+            return "brightness"
+        if "lock" in full_text or (t == "hotkey" and "win+l" in val):
+            return "hotkey"
+        if "paste" in full_text:
+            return "hotkey"
+        if t == "website":
+            return "link"
+        if t == "hotkey":
+            return "hotkey"
+        if t == "launch":
+            return "launch"
+        if t == "script":
+            return "script"
+        return t or "link"
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         scale = 1.0 - self._press_progress * 0.03
         painter.translate(self.width() / 2, self.height() / 2)
         painter.scale(scale, scale)
         painter.translate(-self.width() / 2, -self.height() / 2)
-        painter.drawPixmap(0, 0, self._glass_cache) if not self._glass_cache.isNull() else None
-        if self._glass_cache.isNull():
-            self._paint_surface(painter)
 
-        rect = QRectF(self.rect())
-        action_type = self.action.get("type", "") if self.action else ""
-        emphasized = self._selected or self._hover_progress > 0.05
-        accent = self.theme.actions.get(action_type, self.theme.text_dim) if emphasized else self.theme.text_dim
-        if not self._macro_active:
-            accent = self.theme.off
-        if self._active_glow > 0 and self.action and action_type == "ptt":
-            c = QColor(accent)
-            c.setAlphaF(min(1.0, 0.4 + self._active_glow * 0.6))
-            accent = c.name(QColor.NameFormat.HexArgb)
+        rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+        radius = 14.0
 
+        # Background and border
+        if self._selected:
+            painter.setPen(QPen(QColor("#A855F7"), 1.5))
+            painter.setBrush(QColor(168, 85, 247, 20))
+        elif self._hover_progress > 0.05:
+            painter.setPen(QPen(QColor(255, 255, 255, 38), 1.0))
+            painter.setBrush(QColor(255, 255, 255, 14))
+        else:
+            painter.setPen(QPen(QColor(255, 255, 255, 20), 1.0))
+            painter.setBrush(QColor(255, 255, 255, 9))
+        painter.drawRoundedRect(rect, radius, radius)
+
+        # Key number in top right
         top_font = QFont(self.font())
         top_font.setPointSize(9)
-        top_font.setWeight(QFont.Weight.DemiBold)
+        top_font.setWeight(QFont.Weight.Normal)
         painter.setFont(top_font)
-        painter.setPen(QColor(self.theme.text_dim))
-        painter.drawText(QRectF(10, 7, rect.width() - 20, 16), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, self.number)
+        painter.setPen(QColor(255, 255, 255, 95))
+        painter.drawText(QRectF(rect.right() - 22, 7, 16, 14), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, self.number)
 
-        if self.action and action_type == "hotkey":
-            mono = QFont(self.font())
-            mono.setFamily(mono_font_family())
-            mono.setPointSize(7)
-            painter.setFont(mono)
-            painter.setPen(QColor(self.theme.actions.get("hotkey", accent)))
-            shortcut = self.action.get("value", "").upper().replace("CTRL", "⌃").replace("SHIFT", "⇧").replace("ALT", "⌥").replace("WIN", "⊞")
-            painter.drawText(QRectF(28, 6, rect.width() - 36, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, shortcut)
+        # Accent and colors
+        if self._selected:
+            icon_color = "#C084FC"
+            text_color = QColor("#FFFFFF")
+        elif self.action:
+            icon_color = "rgba(255,255,255,0.85)"
+            text_color = QColor(255, 255, 255, 215)
+        else:
+            icon_color = "rgba(255,255,255,0.30)"
+            text_color = QColor(255, 255, 255, 75)
 
-        glyph = icon_pixmap(action_type if self.action else "add", accent, 24)
+        if not self._macro_active:
+            icon_color = "rgba(255,255,255,0.40)"
+            text_color = QColor(255, 255, 255, 100)
+
+        # Center icon
+        icon_name = self._get_icon_name()
+        glyph = icon_pixmap(icon_name, icon_color, 24)
         if glyph.isNull() and not self.action:
-            glyph = self._plus_icon(accent)
+            glyph = self._plus_icon(icon_color)
         if not glyph.isNull():
-            painter.drawPixmap(int(rect.center().x() - glyph.width() / 2), 26, glyph)
+            cx = int(rect.center().x())
+            painter.drawPixmap(cx - int(glyph.width() / 2), 20, glyph)
 
+        # Centered label below icon
         font = QFont(self.font())
         font.setPointSize(9)
         font.setWeight(QFont.Weight.Medium)
         painter.setFont(font)
-        painter.setPen(QColor(self.theme.text if self.action else self.theme.text_dim))
-        label = painter.fontMetrics().elidedText(self.label, Qt.TextElideMode.ElideRight, int(rect.width() - 16))
-        painter.drawText(QRectF(8, 56, rect.width() - 16, 16), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label)
+        painter.setPen(text_color)
+        display_label = self.label if self.action else ""
+        label_rect = QRectF(6, 52, rect.width() - 12, 18)
+        elided = painter.fontMetrics().elidedText(display_label, Qt.TextElideMode.ElideRight, int(label_rect.width()))
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, elided)
 
-        small = QFont(self.font())
-        small.setPointSize(7)
-        painter.setFont(small)
-        painter.setPen(QColor(self.theme.text_dim))
-        value = painter.fontMetrics().elidedText(self.value, Qt.TextElideMode.ElideMiddle, int(rect.width() - 16))
-        painter.drawText(QRectF(8, 72, rect.width() - 16, 14), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, value)
-
-        if self.hasFocus():
-            painter.setPen(QPen(QColor(self.theme.actions.get(action_type, self.theme.off)), 2))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRoundedRect(rect.adjusted(2, 2, -2, -2), 16, 16)
         painter.end()
-
-    def _paint_surface(self, painter):
-        dpr = self.devicePixelRatioF()
-        self._glass_cache = QPixmap(int(self.width() * dpr), int(self.height() * dpr))
-        self._glass_cache.setDevicePixelRatio(dpr)
-        self._glass_cache.fill(Qt.GlobalColor.transparent)
-        surface_painter = QPainter(self._glass_cache)
-        surface_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self._paint_glass(surface_painter)
-        surface_painter.end()
-        painter.drawPixmap(0, 0, self._glass_cache)
-
-    def _paint_glass(self, painter):
-        strength = max(self._hover_progress, 1.0 if self._selected else 0.0)
-        accent = self.theme.actions.get(self.action.get("type", "")) if self.action and (self._selected or strength > 0.05) else None
-        paint_glass_surface(painter, QRectF(0.5, 0.5, self.width() - 1, self.height() - 1), self.theme, 16, accent, strength)
 
     def _plus_icon(self, color: str) -> QPixmap:
         from PyQt6.QtGui import QPainter, QPen
@@ -284,8 +378,8 @@ class KeyTile(QPushButton):
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(QColor(color), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        painter.drawLine(12, 5, 12, 19)
-        painter.drawLine(5, 12, 19, 12)
+        painter.setPen(QPen(token_color(color), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.drawLine(12, 6, 12, 18)
+        painter.drawLine(6, 12, 18, 12)
         painter.end()
         return pixmap

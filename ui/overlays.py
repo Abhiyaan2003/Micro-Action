@@ -5,13 +5,13 @@ import math
 import re
 import time
 
-from PyQt6.QtCore import QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QRect, Qt, QTimer, pyqtSignal, QObject
+from PyQt6.QtCore import QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QRect, QRectF, Qt, QTimer, pyqtSignal, QObject
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
 from ui.backdrop import enable_acrylic
 from ui.icons import icon_pixmap
-from ui.theme import DARK, ThemeTokens, theme_for
+from ui.theme import DARK, ThemeTokens, stylesheet_tokens, theme_for, token_color
 
 
 class OverlaySignals(QObject):
@@ -24,30 +24,34 @@ class OverlaySignals(QObject):
 class Waveform(QWidget):
     def __init__(self, color: str, parent=None):
         super().__init__(parent)
-        self.color = QColor(color)
-        self.setFixedSize(36, 22)
+        self.color = token_color(color)
+        self.setFixedSize(34, 22)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.update)
         self._started = time.monotonic()
 
     def start(self):
         self._started = time.monotonic()
-        self._timer.start(110)
+        self._timer.start(75)
         self.show()
 
     def stop(self):
         self._timer.stop()
         self.hide()
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
+        from PyQt6.QtCore import QPointF
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(self.color, 2.2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setPen(QPen(self.color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
         tick = time.monotonic() - self._started
-        for index in range(5):
-            height = 4 + 12 * abs(math.sin(tick * 5.0 + index * 0.85))
-            x = 4 + index * 7
-            painter.drawLine(x, int((self.height() - height) / 2), x, int((self.height() + height) / 2))
+        base_heights = [5.0, 11.0, 17.0, 13.0, 9.0]
+        cy = self.height() / 2.0
+        for index, base_h in enumerate(base_heights):
+            var = math.sin(tick * 7.5 + index * 1.25) * 3.5
+            h = max(3.5, min(self.height() - 2.0, base_h + var))
+            x = 4.0 + index * 6.5
+            painter.drawLine(QPointF(x, cy - h / 2.0), QPointF(x, cy + h / 2.0))
         painter.end()
 
 
@@ -73,8 +77,9 @@ class OverlayPill(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setMinimumWidth(212)
+        self.setMinimumWidth(180)
         self.setMaximumWidth(560)
+        self.setFixedHeight(44)
         self._acrylic_applied = False
         self._generation = 0
         self._fade_group = None
@@ -82,27 +87,30 @@ class OverlayPill(QWidget):
 
         from PyQt6.QtWidgets import QHBoxLayout
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(18, 12, 20, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(16, 6, 20, 6)
+        layout.setSpacing(10)
         self.icon_label = QLabel()
-        self.icon_label.setFixedSize(24, 24)
+        self.icon_label.setFixedSize(20, 20)
+        self.icon_label.setStyleSheet("background: transparent;")
         layout.addWidget(self.icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self.waveform = Waveform(self.theme.actions["ptt"], self)
+        self.waveform = Waveform(self.theme.actions.get("ptt", "#FF5C7A"), self)
         layout.addWidget(self.waveform, 0, Qt.AlignmentFlag.AlignVCenter)
         self.waveform.hide()
 
         text_layout = QVBoxLayout()
-        text_layout.setSpacing(2)
+        text_layout.setSpacing(1)
+        text_layout.setContentsMargins(0, 0, 0, 0)
         self.title_label = QLabel()
         self.title_label.setTextFormat(Qt.TextFormat.PlainText)
-        self.title_label.setStyleSheet(f"color: {self.theme.text}; font-size: 13px; font-weight: 600; background: transparent;")
+        self.title_label.setStyleSheet("color: #FFFFFF; font-size: 13px; font-weight: 500; background: transparent;")
         self.detail_label = QLabel()
         self.detail_label.setTextFormat(Qt.TextFormat.RichText)
-        self.detail_label.setStyleSheet(f"color: {self.theme.text_dim}; font-size: 11px; font-weight: 400; background: transparent;")
+        self.detail_label.setStyleSheet(stylesheet_tokens(f"color: {self.theme.text_dim}; font-size: 11px; font-weight: 400; background: transparent;"))
         self.detail_label.setWordWrap(True)
-        text_layout.addWidget(self.title_label)
-        text_layout.addWidget(self.detail_label)
+        self.detail_label.hide()
+        text_layout.addWidget(self.title_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        text_layout.addWidget(self.detail_label, 0, Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(text_layout, 1)
 
         self._auto_hide = QTimer(self)
@@ -126,7 +134,7 @@ class OverlayPill(QWidget):
             self.signals.notice.emit(self.title_label.text(), self.detail_label.text(), "ptt", self.theme.actions["ptt"], 0, True)
 
     def show_state(self, macros_active: bool):
-        self.signals.state.emit(bool(macros_active))
+        self.signals.state.emit(macros_active)
 
     def show_saved(self, detail: str = "Changes saved"):
         self.show_toast("Saved", detail, icon_name="check", duration_ms=1400)
@@ -146,7 +154,7 @@ class OverlayPill(QWidget):
     def set_theme(self, theme: ThemeTokens):
         self.theme = theme
         self._acrylic_applied = False
-        self.waveform.color = QColor(theme.actions["ptt"])
+        self.waveform.color = token_color(theme.actions["ptt"])
         self.update()
 
     @staticmethod
@@ -168,16 +176,21 @@ class OverlayPill(QWidget):
         self._generation += 1
         self._auto_hide.stop()
         self._status_kind = "recording" if recording else "notice"
-        self.waveform.setVisible(recording)
         if recording:
+            self.waveform.color = token_color(self.theme.actions.get("ptt", "#FF5C7A"))
             self.waveform.start()
-            self.icon_label.hide()
+            self.waveform.show()
+            self.icon_label.setPixmap(icon_pixmap("ptt", self.theme.actions.get("ptt", "#FF5C7A"), 20))
+            self.icon_label.show()
+            self.title_label.setText(title or "Listening…")
+            self.title_label.setStyleSheet("color: #FFFFFF; font-size: 13px; font-weight: 500; background: transparent;")
         else:
             self.waveform.stop()
-            self.icon_label.setPixmap(icon_pixmap(icon_name, color, 22))
+            self.waveform.hide()
+            self.icon_label.setPixmap(icon_pixmap(icon_name, color, 20))
             self.icon_label.show()
-        self.title_label.setText(title)
-        self.title_label.setStyleSheet(f"color: {self.theme.text}; font-size: 13px; font-weight: 600; background: transparent;")
+            self.title_label.setText(title)
+            self.title_label.setStyleSheet(stylesheet_tokens(f"color: {color if icon_name in ('check', 'numpad', 'numpad-off') else self.theme.text}; font-size: 13px; font-weight: 500; background: transparent;"))
         self.detail_label.setText(detail)
         self.detail_label.setVisible(bool(detail))
         self.adjustSize()
@@ -190,10 +203,13 @@ class OverlayPill(QWidget):
         self._generation += 1
         self._auto_hide.stop()
         self._status_kind = "recording"
+        self.waveform.color = token_color(self.theme.actions.get("ptt", "#FF5C7A"))
         self.waveform.start()
         self.waveform.show()
-        self.icon_label.hide()
+        self.icon_label.setPixmap(icon_pixmap("ptt", self.theme.actions.get("ptt", "#FF5C7A"), 20))
+        self.icon_label.show()
         self.title_label.setText("Listening…")
+        self.title_label.setStyleSheet("color: #FFFFFF; font-size: 13px; font-weight: 500; background: transparent;")
         committed = escape(committed.strip())
         tentative = escape(tentative.strip())
         parts = [committed]
@@ -213,23 +229,20 @@ class OverlayPill(QWidget):
         self.waveform.stop()
         self.icon_label.show()
         if active:
-            self.icon_label.setPixmap(icon_pixmap("numpad", self.theme.on, 24))
+            self.icon_label.setPixmap(icon_pixmap("numpad", self.theme.on, 22))
             title = "Micro Action is on"
-            detail = "Your numpad now runs macros"
             color = self.theme.on
         else:
-            self.icon_label.setPixmap(icon_pixmap("numpad-off", self.theme.off, 24))
+            self.icon_label.setPixmap(icon_pixmap("numpad-off", self.theme.off, 22))
             title = "Micro Action is off"
-            detail = "Your numpad types numbers again"
             color = self.theme.off
         self.title_label.setText(title)
-        self.title_label.setStyleSheet(f"color: {color}; font-size: 14px; font-weight: 600; background: transparent;")
-        self.detail_label.setText(detail)
-        self.detail_label.setStyleSheet(f"color: {self.theme.text_dim}; font-size: 12px; font-weight: 400; background: transparent;")
-        self.detail_label.show()
+        self.title_label.setStyleSheet(stylesheet_tokens(f"color: {color}; font-size: 13px; font-weight: 600; background: transparent;"))
+        self.detail_label.setText("")
+        self.detail_label.hide()
         self.adjustSize()
         self._animate_show()
-        self._auto_hide.start(2400)
+        self._auto_hide.start(2000)
 
     def _animate_show(self):
         self._position_bottom_center()
@@ -240,9 +253,6 @@ class OverlayPill(QWidget):
         self.setWindowOpacity(0.0)
         super().show()
         self.raise_()
-        if not self._acrylic_applied:
-            enabled = enable_acrylic(int(self.winId()), "#CC1A1D27" if self.theme.name == "dark" else "#CCF3F5FA")
-            self._acrylic_applied = enabled
         if self._fade_group:
             self._fade_group.stop()
         self._fade_group = QParallelAnimationGroup(self)
@@ -284,13 +294,14 @@ class OverlayPill(QWidget):
     def hide(self):
         self.signals.dismiss.emit()
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        rect = self.rect().adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.setPen(QPen(QColor(self.theme.rim), 1))
-        painter.setBrush(QColor(self.theme.pill))
-        painter.drawRoundedRect(rect, 999, 999)
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        r = rect.height() / 2.0
+        painter.setPen(QPen(QColor(255, 255, 255, 28), 1))
+        painter.setBrush(QColor(16, 17, 26, 245))
+        painter.drawRoundedRect(rect, r, r)
         painter.end()
 
 

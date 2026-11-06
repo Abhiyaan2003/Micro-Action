@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QSignalBlocker, Qt, pyqtSignal
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QSignalBlocker, Qt, pyqtSignal, QPointF
 from PyQt6.QtGui import QColor, QFont, QPainter, QRadialGradient
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame, QGridLayout,
@@ -15,15 +15,33 @@ from config import Config
 from gui import KEY_LABELS, KEY_SUB_LABELS, MODE_MAP, REVERSE_MODE_MAP
 from ui.chips import ActionChip
 from ui.icons import icon
-from ui.theme import DARK, ThemeTokens, interface_font_family, theme_for
+from ui.theme import DARK, ThemeTokens, interface_font_family, stylesheet_tokens, theme_for, token_color
 from ui.tiles import KeyTile
 
 
 ACTION_TYPES = [
-    ("website", "Web"), ("hotkey", "Hotkey"), ("launch", "Application"),
-    ("script", "Script"), ("ptt", "Push-to-talk"), ("screenshot", "Screenshot"),
-    ("screenrec", "Record"),
+    ("website", "Web link"),
+    ("hotkey", "Hotkey"),
+    ("launch", "Launch app"),
+    ("script", "Script"),
+    ("ptt", "Push-to-talk"),
+    ("screenshot", "Screenshot"),
+    ("screenrec", "Screen record"),
+    ("volume", "Volume"),
+    ("brightness", "Brightness"),
 ]
+
+ACTION_SUBTITLES = {
+    "website": "Web link action",
+    "hotkey": "Hotkey action",
+    "launch": "Launch app action",
+    "script": "Script action",
+    "ptt": "Push-to-talk action",
+    "screenshot": "Screenshot action",
+    "screenrec": "Screen record action",
+    "volume": "Volume action",
+    "brightness": "Brightness action",
+}
 
 
 class GlassNumpadEditor(QWidget):
@@ -35,21 +53,23 @@ class GlassNumpadEditor(QWidget):
         self.config = config
         self.ptt = ptt
         self.toast = notification_overlay
+        appearance_val = config.get_setting("appearance", "system")
+        self.appearance: str = appearance_val if isinstance(appearance_val, str) else "system"
         if self.toast is None:
             from ui.overlays import OverlayPill
-            self.toast = OverlayPill(config.get_setting("appearance", "system"))
-        self.appearance = config.get_setting("appearance", "system")
+            self.toast = OverlayPill(self.appearance)
         self.theme: ThemeTokens = theme_for(self.appearance)
-        self.selected_key = "num5"
-        self.current_action_type = "website"
+        self.selected_key = "numdot"
+        self.current_action_type = "hotkey"
         self.buttons: dict[str, KeyTile] = {}
         self.action_buttons: dict[str, ActionChip] = {}
+        self.bound_count: QLabel | None = None
         self.test_mode = False
 
         self.setObjectName("glassMain")
         self.setWindowTitle("Micro Action")
-        self.setMinimumSize(720, 640)
-        self.resize(1040, 760)
+        self.setMinimumSize(820, 540)
+        self.resize(960, 600)
         self._build_ui()
         self.key_pressed_signal.connect(self._handle_key_feedback)
         self._apply_theme()
@@ -58,60 +78,34 @@ class GlassNumpadEditor(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 22, 24, 22)
+        root.setContentsMargins(36, 28, 36, 28)
         root.setSpacing(18)
 
         header = QHBoxLayout()
-        header.setSpacing(12)
-        title_stack = QVBoxLayout()
-        title_stack.setSpacing(2)
+        header.setContentsMargins(0, 0, 0, 0)
         self.title = QLabel("Micro Action")
-        self.title.setObjectName("appTitle")
-        self.subtitle = QLabel("A key map for the numpad you already own")
-        self.subtitle.setObjectName("appSubtitle")
-        title_stack.addWidget(self.title)
-        title_stack.addWidget(self.subtitle)
-        header.addLayout(title_stack)
+        self.title.setStyleSheet("color: #FFFFFF; font-size: 18px; font-weight: 700; background: transparent;")
+        header.addWidget(self.title)
         header.addStretch(1)
 
         self.status_button = QPushButton()
         self.status_button.setObjectName("statusButton")
         self.status_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.status_button.setCursor(Qt.CursorShape.ArrowCursor)
-        self.status_button.setMinimumHeight(34)
-        self.status_button.setAccessibleName("Current NumLock mode; status only")
+        self.status_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.status_button.clicked.connect(self._toggle_or_preview_status)
         header.addWidget(self.status_button)
-
-        self.settings_button = QToolButton()
-        self.settings_button.setText("Settings")
-        self.settings_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.settings_button.clicked.connect(self.open_settings)
-        header.addWidget(self.settings_button)
         root.addLayout(header)
 
         self.body_layout = QHBoxLayout()
-        self.body_layout.setSpacing(40)
+        self.body_layout.setContentsMargins(0, 10, 0, 0)
+        self.body_layout.setSpacing(48)
+
+        # Left Column: Numpad Grid + Helper text
         self.key_area = QWidget()
         self.key_area.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         key_layout = QVBoxLayout(self.key_area)
         key_layout.setContentsMargins(0, 0, 0, 0)
-        key_layout.setSpacing(12)
-
-        map_header = QHBoxLayout()
-        map_titles = QVBoxLayout()
-        map_titles.setSpacing(2)
-        self.map_title = QLabel("Key map")
-        self.map_title.setObjectName("sectionTitle")
-        self.map_hint = QLabel("Select a key to edit its action")
-        self.map_hint.setObjectName("helperText")
-        map_titles.addWidget(self.map_title)
-        map_titles.addWidget(self.map_hint)
-        map_header.addLayout(map_titles)
-        map_header.addStretch(1)
-        self.bound_count = QLabel("0 of 11 assigned")
-        self.bound_count.setObjectName("helperText")
-        map_header.addWidget(self.bound_count, 0, Qt.AlignmentFlag.AlignVCenter)
-        key_layout.addLayout(map_header)
+        key_layout.setSpacing(18)
 
         self.key_grid = QWidget()
         self.key_grid.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -129,125 +123,135 @@ class GlassNumpadEditor(QWidget):
                 self._add_tile(grid, pos_id, number, KEY_SUB_LABELS[pos_id], row_index, col_index)
         self._add_tile(grid, "num0", "0", KEY_SUB_LABELS["num0"], 3, 0, wide=True)
         self._add_tile(grid, "numdot", ".", KEY_SUB_LABELS["numdot"], 3, 2)
-
-        self.grid_effect = QGraphicsOpacityEffect(self.key_grid)
-        self.grid_effect.setOpacity(1.0)
-        self.key_grid.setGraphicsEffect(self.grid_effect)
-        self._grid_fade = QPropertyAnimation(self.grid_effect, b"opacity", self)
-        self._grid_fade.setDuration(250)
-        self._grid_fade.setEasingCurve(QEasingCurve.Type.OutCubic)
         key_layout.addWidget(self.key_grid)
 
-        self.key_footer = QHBoxLayout()
-        self.key_footer.setSpacing(14)
-        self.clear_all_button = QPushButton("Clear all")
-        self.clear_all_button.setObjectName("destructiveText")
-        self.clear_all_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.clear_all_button.clicked.connect(self.clear_all_bindings)
-        self.key_footer.addWidget(self.clear_all_button)
-        self.key_footer.addStretch(1)
-        self.test_toggle = QCheckBox("Test mode")
-        self.test_toggle.setToolTip("Show key feedback while editing")
-        self.test_toggle.toggled.connect(self._set_test_mode)
-        self.key_footer.addWidget(self.test_toggle)
-        key_layout.addLayout(self.key_footer)
+        self.helper_text = QLabel(
+            "Press a number key to try a tile. Press NumLock, or use the status button above, to see the on and off notifications."
+        )
+        self.helper_text.setWordWrap(True)
+        self.helper_text.setStyleSheet("color: rgba(255, 255, 255, 0.45); font-size: 11px; line-height: 1.45; background: transparent;")
+        self.helper_text.setFixedWidth(276)
+        key_layout.addWidget(self.helper_text)
+        key_layout.addStretch(1)
         self.body_layout.addWidget(self.key_area, 0, Qt.AlignmentFlag.AlignTop)
 
-        self.editor = QFrame()
-        self.editor.setObjectName("editorPanel")
-        self.editor.setMaximumWidth(420)
-        self.editor.setMinimumWidth(340)
+        # Right Column: Action Editor
+        self.editor = QWidget()
         self.editor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         editor_layout = QVBoxLayout(self.editor)
-        editor_layout.setContentsMargins(20, 18, 20, 18)
-        editor_layout.setSpacing(12)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setSpacing(14)
 
-        self.selected_title = QLabel("Key 5")
-        self.selected_title.setObjectName("sectionTitle")
-        self.selected_subtitle = QLabel("Numpad 5 · Clear")
-        self.selected_subtitle.setObjectName("helperText")
+        self.selected_title = QLabel("Key .")
+        self.selected_title.setStyleSheet("color: #FFFFFF; font-size: 20px; font-weight: 700; background: transparent;")
+        self.selected_subtitle = QLabel("Hotkey action")
+        self.selected_subtitle.setStyleSheet("color: rgba(255, 255, 255, 0.50); font-size: 12px; font-weight: 400; background: transparent; margin-bottom: 2px;")
         editor_layout.addWidget(self.selected_title)
         editor_layout.addWidget(self.selected_subtitle)
 
-        self.chip_grid = QGridLayout()
-        self.chip_grid.setHorizontalSpacing(6)
-        self.chip_grid.setVerticalSpacing(4)
+        # 2-Row Action Type Selectors
+        chips_layout = QVBoxLayout()
+        chips_layout.setSpacing(8)
+        chips_layout.setContentsMargins(0, 0, 0, 0)
+
+        row1 = QHBoxLayout()
+        row1.setSpacing(8)
+        row2 = QHBoxLayout()
+        row2.setSpacing(8)
+
         for index, (action_type, label) in enumerate(ACTION_TYPES):
             chip = ActionChip(action_type, label, self.theme)
             chip.chosen.connect(self.select_action_type)
             self.action_buttons[action_type] = chip
-            self.chip_grid.addWidget(chip, index // 3, index % 3)
-        editor_layout.addLayout(self.chip_grid)
+            if index < 5:
+                row1.addWidget(chip)
+            else:
+                row2.addWidget(chip)
+        row1.addStretch(1)
+        row2.addStretch(1)
+        chips_layout.addLayout(row1)
+        chips_layout.addLayout(row2)
+        editor_layout.addLayout(chips_layout)
 
-        self.form_scroll = QScrollArea()
-        self.form_scroll.setWidgetResizable(True)
-        self.form_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.form_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Form Fields
         self.form_content = QWidget()
         self.form_layout = QVBoxLayout(self.form_content)
-        self.form_layout.setContentsMargins(0, 4, 4, 4)
+        self.form_layout.setContentsMargins(0, 8, 0, 4)
         self.form_layout.setSpacing(10)
 
         self.name_label = QLabel("Name")
+        self.name_label.setStyleSheet("color: rgba(255, 255, 255, 0.50); font-size: 12px; font-weight: 500; background: transparent;")
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("e.g. Open editor")
+        self.name_input.setPlaceholderText("Lock")
         self.form_layout.addWidget(self.name_label)
         self.form_layout.addWidget(self.name_input)
 
-        self.value_label = QLabel("Website URL")
+        self.value_label = QLabel("Shortcut")
+        self.value_label.setStyleSheet("color: rgba(255, 255, 255, 0.50); font-size: 12px; font-weight: 500; background: transparent;")
         value_row = QHBoxLayout()
         value_row.setSpacing(8)
         self.value_input = QLineEdit()
-        self.value_input.setPlaceholderText("example.com")
+        self.value_input.setPlaceholderText("Win+L")
         value_row.addWidget(self.value_input, 1)
         self.browse_button = QPushButton("Browse")
         self.browse_button.clicked.connect(self.browse_file)
+        self.browse_button.hide()
         value_row.addWidget(self.browse_button)
         self.form_layout.addWidget(self.value_label)
         self.form_layout.addLayout(value_row)
 
         self.browser_label = QLabel("Open with")
+        self.browser_label.setStyleSheet("color: rgba(255, 255, 255, 0.50); font-size: 12px; font-weight: 500; background: transparent;")
         self.browser_combo = QComboBox()
         self.browser_combo.addItems(["Default Browser", "Google Chrome", "Mozilla Firefox", "Microsoft Edge", "Brave Browser"])
+        self.browser_label.hide()
+        self.browser_combo.hide()
         self.form_layout.addWidget(self.browser_label)
         self.form_layout.addWidget(self.browser_combo)
 
         self.capture_label = QLabel("Capture area")
+        self.capture_label.setStyleSheet("color: rgba(255, 255, 255, 0.50); font-size: 12px; font-weight: 500; background: transparent;")
         self.capture_combo = QComboBox()
         self.capture_combo.addItems(["Full Screen", "Primary Monitor", "Active Window"])
+        self.capture_label.hide()
+        self.capture_combo.hide()
         self.form_layout.addWidget(self.capture_label)
         self.form_layout.addWidget(self.capture_combo)
 
         self.ptt_note = QLabel("Hold this key to dictate into the active text field.")
-        self.ptt_note.setObjectName("helperText")
+        self.ptt_note.setStyleSheet("color: rgba(255, 255, 255, 0.45); font-size: 11px; background: transparent;")
+        self.ptt_note.hide()
         self.form_layout.addWidget(self.ptt_note)
-        self.form_layout.addStretch(1)
 
-        self.form_scroll.setWidget(self.form_content)
-        editor_layout.addWidget(self.form_scroll, 1)
+        editor_layout.addWidget(self.form_content)
 
+        # Bottom Buttons
         actions = QHBoxLayout()
-        actions.setSpacing(8)
+        actions.setSpacing(16)
         self.save_button = QPushButton("Save changes")
         self.save_button.setObjectName("primaryButton")
+        self.save_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_button.clicked.connect(self.save_current_action)
         actions.addWidget(self.save_button)
-        self.preview_ptt_button = QPushButton("Preview voice")
-        self.preview_ptt_button.clicked.connect(self.preview_ptt)
-        actions.addWidget(self.preview_ptt_button)
+
         self.clear_key_button = QPushButton("Clear key")
-        self.clear_key_button.setObjectName("destructiveText")
+        self.clear_key_button.setObjectName("destructiveAction")
+        self.clear_key_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clear_key_button.clicked.connect(self.reset_current_action)
         actions.addWidget(self.clear_key_button)
+
+        actions.addStretch(1)
         editor_layout.addLayout(actions)
+        editor_layout.addStretch(1)
+
         self.body_layout.addWidget(self.editor, 1, Qt.AlignmentFlag.AlignTop)
-        self.body_layout.addStretch(1)
         root.addLayout(self.body_layout, 1)
 
         self._set_tab_order()
 
     def _add_tile(self, grid, pos_id, number, secondary, row, column, wide=False):
         tile = KeyTile(pos_id, number, secondary, self.theme, wide=wide)
+        tile.set_action(self.config.get_action(pos_id))
         tile.selected.connect(self.select_key)
         self.buttons[pos_id] = tile
         grid.addWidget(tile, row, column, 1, 2 if wide else 1)
@@ -255,39 +259,68 @@ class GlassNumpadEditor(QWidget):
     def _set_tab_order(self):
         controls = [*self.buttons.values(), *self.action_buttons.values(), self.name_input,
                     self.value_input, self.browser_combo, self.capture_combo, self.browse_button,
-                    self.save_button, self.preview_ptt_button, self.clear_key_button]
+                    self.save_button, self.clear_key_button]
         for first, second in zip(controls, controls[1:]):
             QWidget.setTabOrder(first, second)
 
     def _apply_theme(self):
         theme = self.theme
         font_family = interface_font_family()
-        self.setStyleSheet(f"""
+        self.setStyleSheet(stylesheet_tokens(f"""
             QWidget#glassMain {{ background: {theme.bg}; color: {theme.text}; font-family: '{font_family}'; font-size: 12px; }}
-            QWidget {{ color: {theme.text}; }}
-            QLabel#appTitle {{ color: {theme.text}; font-size: 18px; font-weight: 600; }}
-            QLabel#appSubtitle, QLabel#helperText {{ color: {theme.text_dim}; font-size: 11px; }}
-            QLabel#sectionTitle {{ color: {theme.text}; font-size: 15px; font-weight: 600; }}
-            QFrame#editorPanel {{ background: {'#171A22' if theme.name == 'dark' else '#F7F8FC'}; border: none; border-radius: 20px; }}
-            QLineEdit, QComboBox, QSpinBox {{ background: {theme.inset}; color: {theme.text}; border: none; border-radius: 10px; padding: 10px 12px; min-height: 20px; selection-background-color: {theme.actions['website']}; }}
-            QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{ border-bottom: 2px solid {theme.actions.get(self.current_action_type, theme.on)}; }}
-            QComboBox QAbstractItemView {{ background: {'#1A1D27' if theme.name == 'dark' else '#F3F5FA'}; color: {theme.text}; selection-background-color: {theme.glass_hover}; border: 1px solid {theme.rim}; }}
-            QPushButton {{ background: transparent; color: {theme.text_dim}; border: none; border-radius: 10px; padding: 8px 12px; min-height: 20px; }}
-            QPushButton:hover {{ background: {theme.glass_hover}; color: {theme.text}; }}
-            QPushButton:focus {{ outline: 2px solid {theme.actions.get(self.current_action_type, theme.off)}; }}
-            QPushButton#primaryButton {{ color: {theme.text}; background: {theme.glass_hover}; border: 1px solid {theme.rim}; border-radius: 10px; font-weight: 600; }}
-            QPushButton#primaryButton:hover {{ background: {theme.rim}; }}
-            QPushButton#destructiveText {{ color: {theme.text_dim}; }}
-            QPushButton#destructiveText:hover {{ color: {theme.danger}; background: {theme.glass}; }}
-            QCheckBox {{ color: {theme.text_dim}; spacing: 7px; }}
-            QCheckBox::indicator {{ width: 14px; height: 14px; border: 1px solid {theme.rim}; border-radius: 4px; background: {theme.inset}; }}
-            QCheckBox::indicator:checked {{ background: {theme.on}; border-color: {theme.on}; }}
-            QScrollArea {{ background: transparent; border: none; }}
-            QScrollBar:vertical {{ width: 6px; background: transparent; margin: 2px; }}
-            QScrollBar::handle:vertical {{ background: {theme.rim}; border-radius: 3px; min-height: 24px; }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
-            QPushButton#statusButton {{ color: {theme.text_dim}; background: {theme.pill}; border: 1px solid {theme.rim}; border-radius: 17px; padding: 4px 12px; }}
-        """)
+            QWidget {{ color: {theme.text}; font-family: '{font_family}'; }}
+            QLineEdit, QComboBox {{
+                background: #0E1017;
+                color: #FFFFFF;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 8px;
+                padding: 10px 14px;
+                min-height: 20px;
+                font-size: 13px;
+                selection-background-color: #A855F7;
+            }}
+            QLineEdit:focus, QComboBox:focus {{
+                border: 1px solid #A855F7;
+            }}
+            QComboBox QAbstractItemView {{
+                background: #12141E;
+                color: #FFFFFF;
+                selection-background-color: rgba(255, 255, 255, 0.10);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+            }}
+            QPushButton#primaryButton {{
+                color: #FFFFFF;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.20);
+                border-radius: 8px;
+                font-weight: 500;
+                font-size: 13px;
+                padding: 8px 18px;
+            }}
+            QPushButton#primaryButton:hover {{
+                background: rgba(255, 255, 255, 0.14);
+            }}
+            QPushButton#flatAction {{
+                background: transparent;
+                border: none;
+                color: rgba(255, 255, 255, 0.75);
+                font-size: 13px;
+                padding: 8px 12px;
+            }}
+            QPushButton#flatAction:hover {{
+                color: #FFFFFF;
+            }}
+            QPushButton#destructiveAction {{
+                background: transparent;
+                border: none;
+                color: rgba(255, 255, 255, 0.75);
+                font-size: 13px;
+                padding: 8px 12px;
+            }}
+            QPushButton#destructiveAction:hover {{
+                color: #FF5555;
+            }}
+        """))
         for chip in self.action_buttons.values():
             chip.set_theme(theme)
         for tile in self.buttons.values():
@@ -295,47 +328,41 @@ class GlassNumpadEditor(QWidget):
         self.set_numlock_state(getattr(self, "_macros_active", False), animate=False)
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(), QColor(self.theme.bg))
-        center = self.rect().topLeft()
-        radius = max(self.width(), self.height()) * 0.64
-        glow = QRadialGradient(center, radius)
-        glow.setColorAt(0.0, QColor(self.theme.bg_glow))
-        glow.setColorAt(1.0, QColor(0, 0, 0, 0))
-        painter.fillRect(self.rect(), glow)
+        painter.fillRect(self.rect(), token_color(self.theme.bg))
         painter.end()
 
-    def resizeEvent(self, event):
-        narrow = self.width() < 760
-        self.body_layout.setDirection(QBoxLayout.Direction.TopToBottom if narrow else QBoxLayout.Direction.LeftToRight)
-        if narrow:
-            self.key_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-            self.editor.setMaximumWidth(420)
-        else:
-            self.key_area.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        super().resizeEvent(event)
+    def resizeEvent(self, a0):
+        super().resizeEvent(a0)
 
     def set_numlock_state(self, macros_active: bool, animate: bool = True):
-        self._macros_active = bool(macros_active)
+        self._macros_active = macros_active
         on = self._macros_active
-        title = "NumLock off · macros on" if on else "NumLock on · macros off"
-        self.status_button.setText(("●  " if on else "●  ") + title)
-        self.status_button.setStyleSheet(
-            f"QPushButton#statusButton {{ color: {self.theme.on if on else self.theme.off}; background: {self.theme.pill}; border: 1px solid {self.theme.rim}; border-radius: 17px; padding: 4px 12px; }}"
-        )
-        self.status_button.setToolTip("NumLock off activates mapped actions. NumLock on types numbers.")
-        target = 1.0 if on else 0.4
-        self._grid_fade.stop()
-        if animate:
-            self._grid_fade.setStartValue(self.grid_effect.opacity())
-            self._grid_fade.setEndValue(target)
-            self._grid_fade.start()
-        else:
-            self.grid_effect.setOpacity(target)
+        dot = "●"
+        state_text = "NumLock off, macros on" if on else "NumLock on, macros off"
+        dot_color = self.theme.on if on else self.theme.off
+        self.status_button.setText(f"{dot}  {state_text}")
+        self.status_button.setStyleSheet(f"""
+            QPushButton#statusButton {{
+                color: {dot_color};
+                background: transparent;
+                border: none;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 4px 6px;
+            }}
+            QPushButton#statusButton:hover {{
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+            }}
+        """)
         for tile in self.buttons.values():
             tile.set_macro_active(on)
+
+    def _toggle_or_preview_status(self):
+        if self.toast:
+            self.toast.show_state(self._macros_active)
 
     def set_key_recording(self, pos_id: str, recording: bool):
         if pos_id in self.buttons:
@@ -368,7 +395,6 @@ class GlassNumpadEditor(QWidget):
             tile.set_selected(key == pos_id)
         number = pos_id.replace("num", "").replace("dot", ".")
         self.selected_title.setText(f"Key {number}")
-        self.selected_subtitle.setText(f"Numpad {number} · {KEY_SUB_LABELS.get(pos_id, '')}")
         action = self.config.get_action(pos_id)
         self.buttons[pos_id].set_action(action)
         if action:
@@ -388,12 +414,11 @@ class GlassNumpadEditor(QWidget):
             self.value_input.clear()
             self.browser_combo.setCurrentText("Default Browser")
             self.capture_combo.setCurrentText("Full Screen")
-            self.select_action_type("website", update_fields=False)
-        self._update_bound_count()
+            self.select_action_type("hotkey", update_fields=False)
 
     def select_action_type(self, action_type: str, update_fields: bool = True):
         if action_type not in self.action_buttons:
-            action_type = "website"
+            action_type = "hotkey"
         self.current_action_type = action_type
         for key, chip in self.action_buttons.items():
             blocker = QSignalBlocker(chip)
@@ -401,18 +426,22 @@ class GlassNumpadEditor(QWidget):
             del blocker
             chip.update()
 
+        self.selected_subtitle.setText(ACTION_SUBTITLES.get(action_type, "Hotkey action"))
+
         is_web = action_type == "website"
         is_capture = action_type in ("screenshot", "screenrec")
         is_ptt = action_type == "ptt"
         is_file = action_type in ("launch", "script")
+
         self.value_label.setText({
-            "website": "Website URL", "hotkey": "Keyboard shortcut", "launch": "Application path",
-            "script": "Script path", "screenshot": "Capture scope", "screenrec": "Recording scope",
-        }.get(action_type, "Value"))
+            "website": "Website URL", "hotkey": "Shortcut", "launch": "Application path",
+            "script": "Script path", "screenshot": "Capture area", "screenrec": "Recording area",
+            "volume": "Volume command", "brightness": "Brightness command",
+        }.get(action_type, "Shortcut"))
         self.value_input.setPlaceholderText({
-            "website": "example.com", "hotkey": "ctrl+shift+t", "launch": "Choose an application",
-            "script": "Choose a script", "screenshot": "", "screenrec": "",
-        }.get(action_type, "Enter a value"))
+            "website": "https://github.com", "hotkey": "Win+L", "launch": "Choose an application",
+            "script": "Choose a script", "volume": "up or down", "brightness": "up or down",
+        }.get(action_type, ""))
         self.value_label.setVisible(not is_capture and not is_ptt)
         self.value_input.setVisible(not is_capture and not is_ptt)
         self.browse_button.setVisible(is_file)
@@ -421,10 +450,8 @@ class GlassNumpadEditor(QWidget):
         self.capture_label.setVisible(is_capture)
         self.capture_combo.setVisible(is_capture)
         self.ptt_note.setVisible(is_ptt)
-        self.preview_ptt_button.setVisible(is_ptt)
         if update_fields:
             self.value_input.clear()
-        self._apply_theme()
 
     def save_current_action(self):
         action_type = self.current_action_type
@@ -440,12 +467,14 @@ class GlassNumpadEditor(QWidget):
 
         action = {"type": action_type, "value": value}
         name = self.name_input.text().strip()
+        if not name and action_type == "website":
+            from ui.tiles import extract_website_name
+            name = extract_website_name(value)
         if name:
             action["desc"] = name
         self.config.set_action(self.selected_key, action)
         self.config.save()
         self.buttons[self.selected_key].set_action(action)
-        self._update_bound_count()
         self.select_key(self.selected_key)
         if self.toast:
             self.toast.show_saved()
@@ -462,10 +491,10 @@ class GlassNumpadEditor(QWidget):
     def clear_all_bindings(self):
         answer = QMessageBox.question(
             self, "Clear all keys?", "This removes all 11 key assignments.",
-            QMessageBox.StandardButton.Clear | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Cancel,
         )
-        if answer != QMessageBox.StandardButton.Clear:
+        if answer != QMessageBox.StandardButton.Ok:
             return
         for pos_id in KEY_LABELS:
             self.config.set_action(pos_id, None)
@@ -496,8 +525,9 @@ class GlassNumpadEditor(QWidget):
             self.toast.show_toast("Test mode", "Key feedback is enabled", duration_ms=1400)
 
     def _update_bound_count(self):
-        count = sum(1 for pos_id in KEY_LABELS if self.config.get_action(pos_id))
-        self.bound_count.setText(f"{count} of 11 assigned")
+        if self.bound_count is not None:
+            count = sum(1 for pos_id in KEY_LABELS if self.config.get_action(pos_id))
+            self.bound_count.setText(f"{count} of 11 assigned")
 
 
 class SettingsDialog(QDialog):
@@ -513,7 +543,7 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(22, 20, 22, 20)
         layout.setSpacing(12)
         title = QLabel("Appearance & notifications")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {theme.text};")
+        title.setStyleSheet(stylesheet_tokens(f"font-size: 16px; font-weight: 600; color: {theme.text};"))
         layout.addWidget(title)
 
         layout.addWidget(QLabel("Window theme"))
@@ -548,7 +578,7 @@ class SettingsDialog(QDialog):
         close.setObjectName("primaryButton")
         close.clicked.connect(self.accept)
         layout.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
-        self.setStyleSheet(f"QDialog {{ background: {theme.bg}; color: {theme.text}; }} QLabel#helperText {{ color: {theme.text_dim}; font-size: 11px; }}")
+        self.setStyleSheet(stylesheet_tokens(f"QDialog {{ background: {theme.bg}; color: {theme.text}; }} QLabel#helperText {{ color: {theme.text_dim}; font-size: 11px; }}"))
 
     def _save_theme(self):
         self.config.set_setting("theme", self.theme_combo.currentData())
@@ -561,5 +591,5 @@ class SettingsDialog(QDialog):
         self.appearance_changed.emit(appearance)
 
     def _save_option(self, key: str, value: bool):
-        self.config.set_setting(key, bool(value))
+        self.config.set_setting(key, value)
         self.config.save()

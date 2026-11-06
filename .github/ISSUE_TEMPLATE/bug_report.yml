@@ -1,0 +1,93 @@
+name: 🐛 Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        Please provide as much detail as possible so we can reproduce and fix it quickly.
+
+  - type: input
+    id: summary
+    attributes:
+      label: What happened?
+      description: A clear, one-sentence description of the bug.
+      placeholder: "e.g. App crashes when I press Num 0 while recording is active"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps to make the bug happen.
+      placeholder: |
+        1. Open Micro Action
+        2. Turn NumLock OFF
+        3. Press Num 0 (Speech to Text key)
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      placeholder: "e.g. The PTT overlay should appear and start listening"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      placeholder: "e.g. The app freezes / closes / shows an error dialog"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Micro Action version
+      placeholder: "e.g. v2.0.0 (from the About dialog or release ZIP name)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: How did you install it?
+      options:
+        - Pre-built EXE (from GitHub Releases)
+        - Built from source (python main.py)
+    validations:
+      required: true
+
+  - type: input
+    id: windows_version
+    attributes:
+      label: Windows version
+      placeholder: "e.g. Windows 11 23H2"
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python version (if running from source)
+      placeholder: "e.g. Python 3.12.4 — skip if using the EXE"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output / logs
+      description: Paste any terminal output, traceback, or error dialog text here.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, videos, or other context that might help.
+

@@ -12,9 +12,18 @@ def get_resource_path(relative_path: str) -> str:
         base_path = os.path.dirname(os.path.abspath(__file__))
     
     path = os.path.join(base_path, relative_path)
-    if not os.path.exists(path):
-        exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else base_path
-        path = os.path.join(exe_dir, relative_path)
+    if os.path.exists(path):
+        return path
+
+    exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else base_path
+    candidate = os.path.join(exe_dir, relative_path)
+    if os.path.exists(candidate):
+        return candidate
+
+    internal_candidate = os.path.join(exe_dir, "_internal", relative_path)
+    if os.path.exists(internal_candidate):
+        return internal_candidate
+
     return path
 
 

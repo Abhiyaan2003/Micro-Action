@@ -1,3 +1,4 @@
+from typing import Any
 import ctypes
 import ctypes.wintypes
 import threading
@@ -39,6 +40,15 @@ HOOKPROC = ctypes.WINFUNCTYPE(
     ctypes.wintypes.LPARAM
 )
 
+# Configure CallNextHookEx with 64-bit safe signatures
+ctypes.windll.user32.CallNextHookEx.argtypes = [
+    ctypes.wintypes.HHOOK,
+    ctypes.c_int,
+    ctypes.wintypes.WPARAM,
+    ctypes.wintypes.LPARAM,
+]
+ctypes.windll.user32.CallNextHookEx.restype = ctypes.c_longlong
+
 class KeyboardHook:
     """
     Installs WH_KEYBOARD_LL on the CALLING thread (must be the Qt main thread).
@@ -50,8 +60,8 @@ class KeyboardHook:
         self.config         = config
         self.action_engine  = action_engine
         self.ptt_engine     = ptt_engine
-        self.gui_notifier   = None
-        self.numlock_notifier = None
+        self.gui_notifier: Any   = None
+        self.numlock_notifier: Any = None
         self.hook_id        = None
         self.pointer        = None          # keep WINFUNCTYPE alive
 
@@ -143,15 +153,22 @@ class KeyboardHook:
 
     # ── Callback — runs on Qt main thread, must return in < 300 ms ──────────
 
+    def _call_next(self, nCode, wParam, lParam):
+        """Pass a pointer-sized LPARAM safely through ctypes on 64-bit Windows."""
+        bits = ctypes.sizeof(ctypes.c_void_p) * 8
+        raw = int(lParam or 0) & ((1 << bits) - 1)
+        sign_bit = 1 << (bits - 1)
+        if raw & sign_bit:
+            raw -= 1 << bits
+        return ctypes.windll.user32.CallNextHookEx(self.hook_id, nCode, wParam, raw)
+
     def _hook_callback(self, nCode, wParam, lParam):
         try:
             if nCode < 0:
-                return ctypes.windll.user32.CallNextHookEx(
-                    self.hook_id, nCode, wParam, lParam)
+                return self._call_next(nCode, wParam, lParam)
 
             if not lParam:
-                return ctypes.windll.user32.CallNextHookEx(
-                    self.hook_id, nCode, wParam, lParam)
+                return self._call_next(nCode, wParam, lParam)
 
             kbd = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
 
@@ -163,8 +180,7 @@ class KeyboardHook:
 
             # NumLock ON → pass everything through
             if ctypes.windll.user32.GetKeyState(0x90) & 1:
-                return ctypes.windll.user32.CallNextHookEx(
-                    self.hook_id, nCode, wParam, lParam)
+                return self._call_next(nCode, wParam, lParam)
 
             # Distinguish numpad from nav-cluster:
             #   LLKHF_EXTENDED (bit 0) is SET for nav-cluster, CLEAR for numpad.
@@ -191,8 +207,7 @@ class KeyboardHook:
             # Guard against any unexpected exception reaching Windows User32
             pass
 
-        return ctypes.windll.user32.CallNextHookEx(
-            self.hook_id, nCode, wParam, lParam)
+        return self._call_next(nCode, wParam, lParam)
 
     # ── Worker thread — does actual work off the hot callback path ───────────
 

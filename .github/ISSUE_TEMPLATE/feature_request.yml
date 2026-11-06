@@ -1,0 +1,55 @@
+name: 💡 Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea that would make Micro Action better? Great — fill in the details below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation where the missing feature gets in your way.
+      placeholder: "e.g. I have to manually switch my browser profile before launching a URL — there's no way to pass a browser argument."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: Be as specific as you can — UI mockup, CLI flag, config field, etc.
+      placeholder: "e.g. Add an optional 'args' field to the Open Website action so I can pass --profile-directory='Profile 2' to Chrome."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Any workarounds you've tried or other tools that handle this.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which area does this affect?
+      options:
+        - Action types (hotkey, URL, app, script, STT, screenshot, record)
+        - UI / keymap editor
+        - System tray / profiles
+        - Build / packaging
+        - CI / developer tooling
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Would you like to implement this?
+      options:
+        - label: "Yes, I'd like to open a PR for this"
+        - label: "No, I'm just suggesting it"
+
