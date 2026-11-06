@@ -1,7 +1,7 @@
 **Micro Action** — turn any numpad into a silent Stream Deck for Windows. Assign hotkeys, URLs, apps, scripts, or speech-to-text assign to a key. No scripting, no extra hardware.
 
-<!-- Replace the line below with your actual demo GIF once recorded (5-10 seconds: tray launch → NumLock OFF → key press → action fires) -->
-![Micro Action demo](assets/demo.gif)
+<!-- Replace with demo GIF once recorded, currently showcasing the social preview banner -->
+![Micro Action](.github/social-preview.png)
 
 ```powershell
 # One-command launch — no Python required (PowerShell)
