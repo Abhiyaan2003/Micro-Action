@@ -1,3 +1,7 @@
 [tool.pyrefly]
 python-interpreter-path = "C:/Program Files/Python312/python.exe"
 search-paths = ["C:/Program Files/Python312/Lib/site-packages"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_all_possibilities.py", "test_ptt_unit.py"]

@@ -5,7 +5,7 @@
 
 ```powershell
 # One-command launch — no Python required (PowerShell)
-irm https://github.com/Abhiyaan2003/KeySpark/releases/latest/download/KeySpark-v2.0.0-windows-x64.zip -OutFile KeySpark.zip; Expand-Archive KeySpark.zip -DestinationPath KeySpark; .\KeySpark\KeySpark.exe
+irm https://github.com/Abhiyaan2003/KeySpark/releases/latest/download/KeySpark-v2.1.0-windows-x64.zip -OutFile KeySpark.zip; Expand-Archive KeySpark.zip -DestinationPath KeySpark; .\KeySpark\KeySpark.exe
 ```
 
 <p align="center">
