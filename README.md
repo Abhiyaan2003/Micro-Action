@@ -1,4 +1,4 @@
-**Micro Action** — turn any $5 USB numpad into a silent macro pad for Windows. Assign hotkeys, URLs, apps, scripts, or offline Whisper voice dictation to each key. No scripting, no extra hardware.
+**Micro Action** — turn any numpad into a silent Stream Deck for Windows. Assign hotkeys, URLs, apps, scripts, or speech-to-text assign to a key. No scripting, no extra hardware.
 
 <!-- Replace the line below with your actual demo GIF once recorded (5-10 seconds: tray launch → NumLock OFF → key press → action fires) -->
 ![Micro Action demo](assets/demo.gif)
